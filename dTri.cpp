@@ -17,7 +17,7 @@
 using namespace std;
 using namespace std::chrono;
 
-tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, vector<int>>, unordered_map<int, vector<int>>> readAndSet(const string& filename) {
+tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unordered_map<int, unordered_set<int>>> readAndSet(const string& filename) {
     ifstream file(filename);
     if (!file) {
         cerr << "Failed to open file: " << filename << endl;
@@ -34,8 +34,8 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, vector<int>>, unordered_ma
     iss >> n >> n >> m;
 
     printf("Read File ... \n");
-    unordered_map<int, vector<int>> adjVector;
-    unordered_map<int, vector<int>> adjVector2;
+    unordered_map<int, unordered_set<int>> adjVector;
+    unordered_map<int, unordered_set<int>> adjVector2;
 
     int u, v;
     VertexSet vertexSet(n);
@@ -44,8 +44,8 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, vector<int>>, unordered_ma
 
     while (file >> u >> v) {
         u--, v--;
-        adjVector[u].push_back(v);
-        adjVector[v].push_back(u);
+        adjVector[u].insert(v);
+        adjVector[v].insert(u);
     }
     file.close();
 
@@ -69,7 +69,7 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, vector<int>>, unordered_ma
         for (const auto& second_node : adjVector[start_node]) {
             for (const auto& final_node : adjVector[second_node]) {
                 if (start_node != final_node && alreadyNeighbors.find(final_node) == alreadyNeighbors.end()) {
-                    adjVector2[start_node].push_back(final_node);
+                    adjVector2[start_node].insert(final_node);
                 }
             }
         }
@@ -87,130 +87,118 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, vector<int>>, unordered_ma
     return make_tuple(vertexSet, edgeSet1, edgeSet2, adjVector, adjVector2);
 }
 
-void getTri1(VertexSet& vset, Edge& e, unordered_map<int, vector<int>>& adj1, unordered_map<int, vector<int>>& adj2, 
-             long long& Tri4, long long& Tri2, long long& Path3) {
+void getTri(VertexSet& vset, Edge& e, unordered_map<int, unordered_set<int>>& adj1, unordered_map<int, unordered_set<int>>& adj2,
+            unordered_set<int>& star_u1, unordered_set<int>& star_u2, unordered_set<int>& star_v1, unordered_set<int>& star_v2, 
+            vector<int>& tri1, vector<int>& tri2, 
+            unordered_map<int, int>& X1, unordered_map<int, int>& X2,
+            long long& Tri1, long long& Tri2, long long& Path1, long long& Path2, long long& Path3, 
+            const int& type) {
+
+    // type 1: edge 1 -> distance 1 : Tri4 / edge 1 -> distance 2 : Tri2
+    // type 2: edge 2 -> distance 1 : Tri3 / edge 2 -> distance 2 : Tri1
+
     int u = e.src;
     int v = e.dest;
-    
-    int deg2_u = 0; int deg2_v= 0;
-
-    unordered_map<int, bool> X1;
-    unordered_map<int, bool> X2;
-
-    for (auto w : adj1[u]) {
-        if (w == v) continue;
-        X1[w] = true;
-    }
-    for (auto w : adj1[v]) {
-        if (w == u) continue;
-        if (X1[w] == true) {
-            Tri4++;
-        }
-    }
-
-    for (auto w : adj2[u]) {
-        if (w == v) continue;
-        X2[w] = true;
-    }
-    for (auto w : adj2[v]) {
-        if (w == u) continue;
-        if (X2[w] == true) {
-            Tri2++;
-        }
-    }
-
-    vset.setTri4(u, Tri4);
-    vset.setTri4(v, Tri4);
-    e.setTri4(Tri4);
-
-    vset.setTri2(u, Tri2);
-    vset.setTri2(v, Tri2);
-    e.setTri2(Tri2);
-
-    deg2_u = vset.getDegree2(u);
-    deg2_v = vset.getDegree2(v);
-
-    //4-6-3
-    Path3 = (deg2_u-1)*(deg2_v -1);
-
-
-}
-
-void getTri2(VertexSet& vset, Edge& e, unordered_map<int, vector<int>>& adj1, unordered_map<int, vector<int>>& adj2,
-             vector<int>& star, vector<int>& tri1, vector<int>& tri2, unordered_map<int, int>& X1, unordered_map<int, int>& X2,
-             long long& Tri3, long long& Tri1, long long& Path1, long long& Path2, long long& Path4) {
-    int u = e.src;
-    int v = e.dest;
-    
-    int deg1_u = 0; int deg1_v= 0; int deg2_u = 0; int deg2_v= 0;
-
 
     for (auto w : adj1[u]) {
         if (w == v) continue;
         X1[w] = 1;
-
+        star_u1.insert(w);
     }
-    for (auto w : adj1[v]) {
-        if (w == u) continue;
-        if (X1[w] == 1) {
-            Tri3++;
-            X1[w] = 2;
-            tri1.push_back(w);
-        }
-        else{
-            X1[w] = 3;
-        }
-    }
-
 
     for (auto w : adj2[u]) {
         if (w == v) continue;
         X2[w] = 1;
+        star_u2.insert(w);
+    }
+
+    for (auto w : adj1[v]) {
+        if (w == u) continue;
+        if (X2[w] == 1){
+            star_u2.erase(w);
+            continue;
+        }
+        if (X1[w] == 1) {
+            Tri1++;
+            X1[w] = 2;
+            tri1.push_back(w);
+            star_u1.erase(w);
+        }
+        else {
+            star_v1.insert(w);
+            X1[w] = 3;     
+        }
     }
     for (auto w : adj2[v]) {
         if (w == u) continue;
+        if (X1[w] == 1){
+            star_u1.erase(w);
+            continue;
+        }
         if (X2[w] == 1) {
-            Tri1++;
-            X2[w] =2;
+            X2[w] = 2;
+            Tri2++;
             tri2.push_back(w);
+            star_u2.erase(w);
         }
-        else{
+        else {
+            star_v2.insert(w);
             X2[w] = 3;
-            star.push_back(w);
         }
     }
 
-    vset.setTri3(u, Tri3);
-    vset.setTri3(v, Tri3);
-    e.setTri3(Tri3);
+    if (type == 1){
+        vset.setTri4(u, Tri1);
+        vset.setTri4(v, Tri1);
+        e.setTri4(Tri1);
 
-    vset.setTri1(u, Tri1);
-    vset.setTri1(v, Tri1);
-    e.setTri1(Tri1);
+        vset.setTri2(u, Tri2);
+        vset.setTri2(v, Tri2);
+        e.setTri2(Tri2);
 
+        Path1 = star_u2.size() * star_v2.size();
+    }
+    else {
+        vset.setTri3(u, Tri1);
+        vset.setTri3(v, Tri1);
+        e.setTri3(Tri1);
 
-    deg1_u = vset.getDegree1(u); deg2_u = vset.getDegree2(u);
-    deg1_v = vset.getDegree1(v); deg2_v = vset.getDegree2(v);
-
-    //4-6-1, 4-6-2, 4-6-4
-    Path1 = (deg2_u-1)*(deg2_v -1);
-    Path2 = (deg2_u-1)*(deg1_v -1) + (deg1_u-1)*(deg2_v -1);
-    Path4 = (deg1_u-1)*(deg1_v -1);
-
+        vset.setTri1(u, Tri2);
+        vset.setTri1(v, Tri2);
+        e.setTri1(Tri2);
+        
+        Path1 = star_u2.size() * star_v2.size();
+        Path2 = (star_u2.size() * star_v1.size()) + (star_u1.size() * star_v2.size());
+        Path3 = star_u1.size() * star_v1.size();
+    }
 }
 
-void getCycle(unordered_map<int, int>& X, vector<int>& star, unordered_map<int, vector<int>>& adj, long long& cycle){
-    for (auto w : star){
-        for (auto r : adj[w]){
-            if (X[r] == 3)
+
+void getCycle(unordered_map<int, int> X, unordered_map<int, int> X2, unordered_set<int>& star, unordered_map<int, unordered_set<int>>& adj, long long& cycle, Edge& edge, int type){
+    for (int w : star){
+        for (int r : adj[w]){
+            if (X[r] == 3) {
                 cycle +=1;
+            }
         }
+        X[w] = 0;
+    }
+
+}
+
+void getClique(unordered_map<int, int> X, vector<int>& tri, unordered_map<int, unordered_set<int>>& adj, long long& clique){
+    for (auto w : tri){
+        for (auto r : adj[w]){
+            if (X[r] == 2)
+                clique +=1;
+        }
+        X[w] = 0;
     }
 
 }
 
 
-map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, unordered_map<int, vector<int>>& adj1, unordered_map<int, vector<int>>& adj2) {
+map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, unordered_map<int, unordered_set<int>>& adj1, unordered_map<int, unordered_set<int>>& adj2) {
     map<string, long long> motifCounts = {
         {"Tri1", 0}, {"Tri2", 0}, {"Tri3", 0}, {"Tri4", 0},
         //clique
@@ -244,14 +232,26 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, un
     {
         int thread_id = omp_get_thread_num();
     
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(dynamic) 
         for (Edge edge : e1.getEdges()) {
             long long Tri4 =0; long long Tri2 = 0; 
-            long long Path3=0;
-            getTri1(vset, edge, adj1, adj2, Tri4, Tri2, Path3);
+            long long Path3 = 0; 
+            long long Star = 0;
+            unordered_set<int> star_u1; unordered_set<int> star_u2; unordered_set<int> star_v1; unordered_set<int> star_v2;
+            vector<int> tri4_set; vector<int> tri2_set;
+            unordered_map<int, int> X1; unordered_map<int, int> X2;
+            unordered_map<int, bool> star_check;
+            getTri(vset, edge, adj1, adj2, star_u1, star_u2, star_v1, star_v2, tri4_set, tri2_set, X1, X2, Tri4, Tri2, Path3, Path3, Path3, 1);
+            long long Cycle2 = 0; long long Cycle3 = 0;
+            long long Clique1 = 0;
+            getCycle(X2, X1, star_u2, adj1, Cycle3, edge, 3);
+            getCycle(X2, X1, star_u2, adj2, Cycle2, edge, 2);
             thread_motifCounts[thread_id]["Tri4"] += Tri4;
             thread_motifCounts[thread_id]["Tri2"] += Tri2;
             thread_motifCounts[thread_id]["4-6-3"] += Path3;
+            thread_motifCounts[thread_id]["4-4-2"] += Cycle2;
+            thread_motifCounts[thread_id]["4-4-3"] += Cycle3;
+            thread_motifCounts[thread_id]["4-5-2"] += Star;
 
             #pragma omp atomic
             progress1++;
@@ -270,17 +270,25 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, un
         for (Edge edge : e2.getEdges()) {
             long long Tri3 =0; long long Tri1 = 0; 
             long long Path1=0; long long Path2=0; long long Path4=0;
-            vector<int> star; vector<int> tri1; vector<int> tri2;
+            long long Star = 0;
+            unordered_set<int> star_u1; unordered_set<int> star_u2; unordered_set<int> star_v1; unordered_set<int> star_v2;
+            vector<int> tri3_set; vector<int> tri1_set;
             unordered_map<int, int> X1; unordered_map<int, int> X2;
-            getTri2(vset, edge, adj1, adj2, star, tri1, tri2, X1, X2, Tri3, Tri1, Path1, Path2, Path4);
+            unordered_map<int, bool> star_check;
+            getTri(vset, edge, adj1, adj2, star_u1, star_u2, star_v1, star_v2, tri3_set, tri1_set, X1, X2, Tri3, Tri1, Path1, Path2, Path4, 2);
             long long Cycle1 = 0;
-            getCycle(X2, star, adj2, Cycle1);
+            long long Clique1 = 0; long long Clique2 = 0;
+            getCycle(X2, X1, star_u2, adj2, Cycle1, edge, 1);
+            getClique(X2, tri1_set, adj2, Clique1);
+            getClique(X2, tri1_set, adj1, Clique2);
             thread_motifCounts[thread_id]["Tri3"] += Tri3;
             thread_motifCounts[thread_id]["Tri1"] += Tri1;
             thread_motifCounts[thread_id]["4-6-1"] += Path1;
             thread_motifCounts[thread_id]["4-6-2"] += Path2;
             thread_motifCounts[thread_id]["4-6-4"] += Path4;
             thread_motifCounts[thread_id]["4-4-1"] += Cycle1;
+            thread_motifCounts[thread_id]["4-1-1"] += Clique1;
+            thread_motifCounts[thread_id]["4-1-2"] += Clique2;
 
             #pragma omp atomic
             progress2++;
@@ -313,20 +321,25 @@ int main(int argc, char* argv[]) {
     auto start_time = high_resolution_clock::now();
 
     string filename = argv[1];
-    tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, vector<int>>, unordered_map<int, vector<int>>> result = readAndSet(filename);
+    tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unordered_map<int, unordered_set<int>>> result = readAndSet(filename);
 
     VertexSet vset = get<0>(result);
     EdgeSet eset1 = get<1>(result);
     EdgeSet eset2 = get<2>(result);
-    unordered_map<int, vector<int>> adj1 = get<3>(result);
-    unordered_map<int, vector<int>> adj2 = get<4>(result);
+    unordered_map<int, unordered_set<int>> adj1 = get<3>(result);
+    unordered_map<int, unordered_set<int>> adj2 = get<4>(result);
 
     map <string, long long> results = countMotifs(vset, eset1, eset2, adj1, adj2);
 
-    results["Tri1"] /= 3; results["Tri2"] /= 3; results["Tri3"] /= 3; results["Tri4"] /= 3;
+    //graphlet equation
+
+    results["Tri1"] /= 3; results["Tri4"] /= 3;
     results["4-4-1"] /= 4; results["4-4-3"] /= 2;
-    results["4-6-1"] -= 3*results["Tri1"]; results["4-6-2"] -= 6*results["Tri2"];
-    results["4-6-3"] -= 3*results["Tri2"]; results["4-6-4"] -= 3*results["Tri3"];
+    results["4-1-1"] /= 6;
+    results["4-6-1"] = results["4-6-1"] - 4*results["4-4-1"] - results["4-4-2"];
+    results["4-6-2"] = results["4-6-2"] - 2*results["4-4-2"];
+    results["4-6-3"] = results["4-6-3"] - 2*results["4-4-3"] - results["4-4-2"];
+    results["4-6-4"] = results["4-6-4"] - 2*results["4-4-3"];
 
     
     cout << "Motif Counts:" << endl;

@@ -164,6 +164,10 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
                 int dist_bd = dist[b][d];
                 int dist_cd = dist[c][d]; 
 
+                if (a == 46 & b == 368 & c == 168 & d == 136){
+                    printf("dd");
+                }
+
                 //printf("degree : %d and total distance : %d\n", degree, total_distance);
 
                 if (degree == 6) {
@@ -388,8 +392,8 @@ int main(int argc, char* argv[]) {
 
     // cout << "Adjacency Matrix:" << endl;
     // printAdjMatrix(adjMatrix);
-    // cout << "Dist Matrix:" << endl;
-    // printDistMatrix(dist);
+    cout << "Dist Matrix:" << endl;
+    printDistMatrix(dist);
     map <string, long long> results = countMotifs(dist, adjMatrix);
     
     for (auto& motif : results) {
