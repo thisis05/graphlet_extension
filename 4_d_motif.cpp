@@ -113,11 +113,11 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
     }
 
     map <string, long long> motifCounts = {
-        {"4-1-1", 0}, {"4-1-2", 0}, {"4-1-3", 0}, {"4-1-4", 0}, {"4-1-5", 0}, {"4-1-6", 0}, {"4-1-7", 0}, {"4-1-8", 0}, {"4-1-9", 0}, {"4-1-10", 0},
+        {"4-1-1", 0}, {"4-1-2", 0}, {"4-1-3", 0}, {"4-1-4", 0}, {"4-1-5", 0}, {"4-1-6", 0}, {"4-1-7", 0}, {"4-1-8", 0}, {"4-1-9", 0}, {"4-1-10", 0}, {"4-1-11", 0},
         //chordalcycle
-        {"4-2-1", 0}, {"4-2-2", 0}, {"4-2-3", 0}, {"4-2-4", 0}, {"4-2-5", 0}, {"4-2-6", 0}, {"4-2-7", 0},
+        {"4-2-1", 0}, {"4-2-2", 0}, {"4-2-3", 0}, {"4-2-4", 0}, {"4-2-5", 0}, {"4-2-6", 0}, {"4-2-7", 0}, {"4-2-8", 0},
         //tailedtriangle
-        {"4-3-1", 0}, {"4-3-2", 0}, {"4-3-3", 0}, {"4-3-4", 0}, {"4-3-5", 0}, {"4-3-6", 0},
+        {"4-3-1", 0}, {"4-3-2", 0}, {"4-3-3", 0}, {"4-3-4", 0}, {"4-3-5", 0}, {"4-3-6", 0}, {"4-3-7", 0}, {"4-3-8", 0},
         //cycle
         {"4-4-1", 0}, {"4-4-2", 0}, {"4-4-3", 0},
         //star
@@ -132,7 +132,6 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
     vector<map<string, long long>> thread_motifCounts(max_num_workers, motifCounts);
     int total_new_edges = edges.size();
     int progress = 0;
-    mutex mtx;
     #pragma omp parallel
     {
         int thread_id = omp_get_thread_num();
@@ -194,6 +193,13 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
                             //printf("%d %d %d %d\n", a, b, c, d);
                             thread_motifCounts[thread_id]["4-1-6"]++;
                         }
+                        else if ((dist_ab == 2 && dist_ac == 2 && dist_ad == 2) ||
+                            (dist_ab == 2 && dist_bc == 2 && dist_bd == 2)||
+                            (dist_ac == 2 && dist_bc == 2 && dist_cd == 2) ||
+                            (dist_ad == 2 && dist_bd == 2 && dist_cd == 2)) {
+                            //printf("%d %d %d %d\n", a, b, c, d);
+                            thread_motifCounts[thread_id]["4-1-7"]++;
+                        }
                         else{
                             thread_motifCounts[thread_id]["4-1-5"]++;
                         }   
@@ -203,17 +209,17 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
                             (dist_ab == 1 && dist_bc == 1 && dist_bd == 1)||
                             (dist_ac == 1 && dist_bc == 1 && dist_cd == 1) ||
                             (dist_ad == 1 && dist_bd == 1 && dist_cd == 1)) {
-                            thread_motifCounts[thread_id]["4-1-8"]++;
+                            thread_motifCounts[thread_id]["4-1-9"]++;
                         }
                         else{
-                            thread_motifCounts[thread_id]["4-1-7"]++;
+                            thread_motifCounts[thread_id]["4-1-8"]++;
                         }   
                     }
                     else if (total_distance == 7) {
-                        thread_motifCounts[thread_id]["4-1-9"]++;
+                        thread_motifCounts[thread_id]["4-1-10"]++;
                     }
                     else{
-                        thread_motifCounts[thread_id]["4-1-10"]++;
+                        thread_motifCounts[thread_id]["4-1-11"]++;
                     }   
                 } else if (degree == 5) {
 
@@ -233,12 +239,19 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
                     }
                     else if (total_distance == 8) {
                         
-                        if ((dist_ab + dist_ac + dist_ad == 4) ||
+                        if ((dist_ab + dist_ac + dist_ad == 2) ||
+                            (dist_ab + dist_bc + dist_bd == 2) ||
+                            (dist_ac + dist_bc + dist_cd == 2) ||
+                            (dist_ad + dist_bd + dist_cd == 2)) {
+                            thread_motifCounts[thread_id]["4-2-6"]++;
+                        }
+                        else if ((dist_ab + dist_ac + dist_ad == 4) ||
                             (dist_ab + dist_bc + dist_bd == 4) ||
                             (dist_ac + dist_bc + dist_cd == 4) ||
                             (dist_ad + dist_bd + dist_cd == 4)) {
                             thread_motifCounts[thread_id]["4-2-5"]++;
                         }
+                        
                         else{
                             thread_motifCounts[thread_id]["4-2-4"]++;
                         } 
@@ -248,11 +261,11 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
                             (dist_ab + dist_bc + dist_bd == 3) ||
                             (dist_ac + dist_bc + dist_cd == 3) ||
                             (dist_ad + dist_bd + dist_cd == 3)) {
-                            thread_motifCounts[thread_id]["4-2-7"]++;
+                            thread_motifCounts[thread_id]["4-2-8"]++;
                         }
                         else{
                             
-                            thread_motifCounts[thread_id]["4-2-6"]++;
+                            thread_motifCounts[thread_id]["4-2-7"]++;
                         } 
                     }
                 } else if (degree == 4) {
@@ -264,29 +277,41 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
                             thread_motifCounts[thread_id]["4-3-1"]++;
                         }
                         else if (total_distance == 7) {
-                            if ((dist_ab + dist_ac + dist_ad == 3) ||
-                                (dist_ab + dist_bc + dist_bd == 3) ||
-                                (dist_ac + dist_bc + dist_cd == 3) ||
-                                (dist_ad + dist_bd + dist_cd == 3)) {
-                                thread_motifCounts[thread_id]["4-3-3"]++;
+                            if ((dist_ab + dist_ac + dist_ad == 1) ||
+                                (dist_ab + dist_bc + dist_bd == 1) ||
+                                (dist_ac + dist_bc + dist_cd == 1) ||
+                                (dist_ad + dist_bd + dist_cd == 1)) {
+                                thread_motifCounts[thread_id]["4-3-2"]++;
+                            }
+                            else if ((dist_ab + dist_ac + dist_ad == 6) ||
+                                (dist_ab + dist_bc + dist_bd == 6) ||
+                                (dist_ac + dist_bc + dist_cd == 6) ||
+                                (dist_ad + dist_bd + dist_cd == 6)) {
+                                thread_motifCounts[thread_id]["4-3-4"]++;
                             }
                             else{
-                                thread_motifCounts[thread_id]["4-3-2"]++;
+                                thread_motifCounts[thread_id]["4-3-3"]++;
                             } 
                         }
                         else if (total_distance == 6) {
-                            if  ((dist_ab + dist_ac + dist_ad == 5) ||
+                            if ((dist_ab + dist_ac + dist_ad == 1) ||
+                                (dist_ab + dist_bc + dist_bd == 1) ||
+                                (dist_ac + dist_bc + dist_cd == 1) ||
+                                (dist_ad + dist_bd + dist_cd == 1)) {
+                                thread_motifCounts[thread_id]["4-3-5"]++;
+                            }
+                            else if  ((dist_ab + dist_ac + dist_ad == 5) ||
                                 (dist_ab + dist_bc + dist_bd == 5) ||
                                 (dist_ac + dist_bc + dist_cd == 5) ||
                                 (dist_ad + dist_bd + dist_cd == 5)) {
-                                thread_motifCounts[thread_id]["4-3-5"]++;
+                                thread_motifCounts[thread_id]["4-3-7"]++;
                             }
                             else{
-                                thread_motifCounts[thread_id]["4-3-4"]++;
+                                thread_motifCounts[thread_id]["4-3-6"]++;
                             } 
                         }
                         else if (total_distance == 5) {
-                            thread_motifCounts[thread_id]["4-3-6"]++;
+                            thread_motifCounts[thread_id]["4-3-8"]++;
                         }
                         
                     } else {
@@ -392,8 +417,8 @@ int main(int argc, char* argv[]) {
 
     // cout << "Adjacency Matrix:" << endl;
     // printAdjMatrix(adjMatrix);
-    cout << "Dist Matrix:" << endl;
-    printDistMatrix(dist);
+    // cout << "Dist Matrix:" << endl;
+    // printDistMatrix(dist);
     map <string, long long> results = countMotifs(dist, adjMatrix);
     
     for (auto& motif : results) {
