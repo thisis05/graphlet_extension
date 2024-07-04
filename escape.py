@@ -94,6 +94,7 @@ def process_files(base_file_path, random_folder_path):
     create_edges_file(base_file_path, base_edges_file_path)
 
     # Base 파일 처리
+    print("Base File processing...")
     output = run_subgraph_counts(base_edges_file_path)
     base_counts = parse_output(output)
 
