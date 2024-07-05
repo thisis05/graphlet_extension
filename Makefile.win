@@ -1,7 +1,7 @@
 LLVM_DIR = C:/Program Files/LLVM
 OPENMP_LIB ?= 1
 
-all: base_4_d_motif.exe random_4_d_motif.exe 4_d_motif.exe dTri.exe
+all: random_4_d_motif.exe 4_d_motif.exe dTri.exe
 
 CXXFLAGS = -O3 -g -std=c++17
 ifeq ($(OPENMP_LIB),1)
@@ -12,9 +12,6 @@ CXXFLAGS += -ffast-math -funroll-loops -fno-strict-aliasing \
           -fomit-frame-pointer -march=native
 
 CXX = "$(LLVM_DIR)/bin/clang++"
-
-base_4_d_motif.exe: base_4_d_motif.cpp
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o base_4_d_motif.exe base_4_d_motif.cpp
 
 random_4_d_motif.exe: random_4_d_motif.cpp
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o random_4_d_motif.exe random_4_d_motif.cpp
@@ -27,6 +24,6 @@ dTri.exe: dTri.cpp vertex.cpp edge.cpp vertex.h edge.h
 
 clean:
 	@echo "Removing executables"
-	del base_4_d_motif.exe random_4_d_motif.exe 4_d_motif.exe dTri.exe
+	del random_4_d_motif.exe 4_d_motif.exe dTri.exe
 
 

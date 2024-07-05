@@ -30,10 +30,20 @@ def create_edges_file(mtx_file_path, edges_file_path):
 def run_subgraph_counts(file_path):
     """subgraph_counts.py를 실행하고 결과를 반환"""
     command = ['python', './escape/wrappers/subgraph_counts.py', file_path, '5', '-i']
-    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if result.returncode != 0:
-        print(f"Error running subgraph_counts.py: {result.stderr}")
-    return result.stdout
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+
+    output = ""
+    for line in process.stdout:
+        output += line
+        # 진행 상황 출력
+        if "progress" in line.lower():
+            print(line.strip())
+    
+    process.wait()
+    if process.returncode != 0:
+        print(f"Error running subgraph_counts.py: {process.stderr.read()}")
+    return output
+
 
 def parse_output(output):
     """subgraph_counts.py의 출력을 파싱하여 매핑된 패턴과 값을 딕셔너리로 반환"""
