@@ -18,7 +18,7 @@
 using namespace std;
 using namespace std::chrono;
 
-tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unordered_map<int, unordered_set<int>>> readAndSet(const string& filename) {
+tuple<VertexSet, EdgeSet, EdgeSet, vector<vector<int>>, vector<vector<int>>> readAndSet(const string& filename) {
     ifstream file(filename);
     if (!file) {
         cerr << "Failed to open file: " << filename << endl;
@@ -35,8 +35,8 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unord
     iss >> n >> n >> m;
 
     printf("Read File ... \n");
-    unordered_map<int, unordered_set<int>> adjVector;
-    unordered_map<int, unordered_set<int>> adjVector2;
+    vector<vector<int>> adjVector(n);
+    vector<vector<int>> adjVector2(n);
 
     int u, v;
     VertexSet vertexSet(n);
@@ -45,8 +45,8 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unord
 
     while (file >> u >> v) {
         u--, v--;
-        adjVector[u].insert(v);
-        adjVector[v].insert(u);
+        adjVector[u].push_back(v);
+        adjVector[v].push_back(u);
     }
     file.close();
 
@@ -62,7 +62,7 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unord
                 edgeSet1.addEdge(u, v, vertexSet.getDegree1(u), vertexSet.getDegree1(v));
         }
     }
-    edgeSet1.sortEdgesByDegree();
+    //edgeSet1.sortEdgesByDegree();
 
     printf("Calculate distance ... \n");
     
@@ -70,13 +70,14 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unord
 
     #pragma omp parallel for
     for (int start_node = 0; start_node < n; start_node++) {
-        std::unordered_set<int> alreadyNeighbors(adjVector[start_node].begin(), adjVector[start_node].end());
+        unordered_set<int> alreadyNeighbors;
         for (const auto& second_node : adjVector[start_node]) {
             for (const auto& final_node : adjVector[second_node]) {
-                if (start_node != final_node && alreadyNeighbors.find(final_node) == alreadyNeighbors.end()) {
+                if (start_node != final_node && !binary_search(adjVector[start_node].begin(), adjVector[start_node].end(), final_node)) {
                     #pragma omp critical
                     {
-                        adjVector2[start_node].insert(final_node);
+                        if (alreadyNeighbors.insert(final_node).second)
+                            adjVector2[start_node].push_back(final_node);
                     }
                 }
             }
@@ -98,8 +99,10 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unord
 
     for (int u = 0; u < n; u++) {
         for (int v : adjVector2[u]) {
-            if (u < v)
+            if (u < v){
                 edgeSet2.addEdge(u, v, vertexSet.getDegree2(u), vertexSet.getDegree2(v));
+                //printf("%d %d\n", u, v);
+            }
         }
     }
     //edgeSet2.sortEdgesByDegree();
@@ -107,10 +110,18 @@ tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unord
     return make_tuple(vertexSet, edgeSet1, edgeSet2, adjVector, adjVector2);
 }
 
-void getTri1(VertexSet& vset, Edge& e, unordered_map<int, unordered_set<int>>& adj1, unordered_map<int, unordered_set<int>>& adj2,
+void removeVec(vector<int>& vec, int value) {
+    auto it = std::find(vec.begin(), vec.end(), value);
+    if (it != vec.end()) {
+        std::iter_swap(it, vec.end() - 1); // 삭제할 원소와 마지막 원소를 교체
+        vec.pop_back(); // 마지막 원소를 삭제
+    }
+}
+
+void getTri1(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<int>>& adj2,
             unordered_set<int>& star2_u, unordered_set<int>& star2_v, 
             unordered_set<int>& tri2, unordered_set<int>& tri3_1, unordered_set<int>& tri3_2, unordered_set<int>& tri4, 
-            unordered_map<int, int>& X1, unordered_map<int, int>& X2,
+            vector<int>& X1, vector<int>& X2,
             long long& Tri2,  long long& Tri4,
             long long& Path3,
             long long& Star2,
@@ -194,10 +205,10 @@ void getTri1(VertexSet& vset, Edge& e, unordered_map<int, unordered_set<int>>& a
     // }
 }
 
-void getTri2(VertexSet& vset, Edge& e, unordered_map<int, unordered_set<int>>& adj1, unordered_map<int, unordered_set<int>>& adj2,
+void getTri2(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<int>>& adj2,
             unordered_set<int>& star1_u, unordered_set<int>& star1_v, unordered_set<int>& star2_u, unordered_set<int>& star2_v, 
             unordered_set<int>& tri1, unordered_set<int>& tri2_1, unordered_set<int>& tri2_2, unordered_set<int>& tri3, 
-            unordered_map<int, int>& X1, unordered_map<int, int>& X2,
+            vector<int>& X1, vector<int>& X2,
             long long& Tri1, long long& Tri3,
             long long& Star1,
             long long& Path1, long long& Path2, long long& Path4,
@@ -285,7 +296,7 @@ void getTri2(VertexSet& vset, Edge& e, unordered_map<int, unordered_set<int>>& a
 
 
 
-void getCycle(unordered_map<int, int> X, unordered_set<int>& star, unordered_map<int, unordered_set<int>>& adj, long long& cycle){
+void getCycle(vector<int> X, unordered_set<int>& star, vector<vector<int>>& adj, long long& cycle){
     for (int w : star){
         for (int r : adj[w]){
             if (X[r] == 2) {
@@ -297,7 +308,7 @@ void getCycle(unordered_map<int, int> X, unordered_set<int>& star, unordered_map
 }
 
 
-void getClique(unordered_map<int, int> X, int value, unordered_set<int>& tri, unordered_map<int, unordered_set<int>>& adj, long long& clique){
+void getClique(vector<int> X, int value, unordered_set<int>& tri, vector<vector<int>>& adj, long long& clique){
     for (auto w : tri){
         for (auto r : adj[w]){
             if (X[r] == value)
@@ -309,7 +320,7 @@ void getClique(unordered_map<int, int> X, int value, unordered_set<int>& tri, un
 
 
 
-map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, unordered_map<int, unordered_set<int>>& adj1, unordered_map<int, unordered_set<int>>& adj2) {
+map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, vector<vector<int>>& adj1, vector<vector<int>>& adj2) {
     map<string, long long> motifCounts = {
         {"Tri1", 0}, {"Tri2", 0}, {"Tri3", 0}, {"Tri4", 0},
         //clique
@@ -325,6 +336,7 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, un
         //path
         {"4-6-1", 0}, {"4-6-2", 0}, {"4-6-3", 0}, {"4-6-4", 0}
     };
+    int n = adj1.size();
 
     int max_num_workers = omp_get_max_threads() - 1;
     omp_set_num_threads(max_num_workers);
@@ -337,7 +349,7 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, un
     int next_progress1_update = total_e1 / 10;
 
     int progress2 = 0;
-    int next_progress2_update = total_e2 / 20;
+    //int next_progress2_update = total_e2 / 20;
     // start parallel
     #pragma omp parallel
     {
@@ -347,7 +359,7 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, un
         for (Edge edge : e1.getEdges()) {
             unordered_set<int> star2_u; unordered_set<int> star2_v;
             unordered_set<int> tri2_set; unordered_set<int> tri3_1_set; unordered_set<int> tri3_2_set; unordered_set<int> tri4_set; 
-            unordered_map<int, int> X1; unordered_map<int, int> X2;
+            vector<int> X1(n); vector<int> X2(n);
             long long Tri2 = 0; long long Tri4 = 0;
             long long Path3 = 0;
             long long Star2 = 0;
@@ -400,7 +412,7 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, un
         for (Edge edge : e2.getEdges()) {
             unordered_set<int> star1_u; unordered_set<int> star1_v; unordered_set<int> star2_u; unordered_set<int> star2_v;
             unordered_set<int> tri1_set; unordered_set<int> tri2_1_set; unordered_set<int> tri2_2_set; unordered_set<int> tri3_set;
-            unordered_map<int, int> X1; unordered_map<int, int> X2;
+            vector<int> X1(n); vector<int> X2(n);
             long long Tri1 = 0; long long Tri3 = 0; 
             long long Star1 = 0;
             long long Path1 = 0; long long Path2 = 0; long long Path4 = 0;
@@ -446,13 +458,10 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, un
 
             #pragma omp atomic
             progress2++;
-            if (progress2 == next_progress2_update) {
+            if (progress2 % 10000 == 0) {
                 #pragma omp critical
                 {
-                    if (progress2 >= next_progress2_update) {
-                        printf("Edge 2 Progress: %d / %d (%d%%)\n", progress2, total_e2, (progress2 * 100) / total_e2);
-                        next_progress2_update += total_e2 / 20; 
-                    }
+                    printf("Progress: %d / %d\n", progress2, total_e2);
                 }
             }
         }
@@ -475,13 +484,13 @@ int main(int argc, char* argv[]) {
     auto start_time = high_resolution_clock::now();
 
     string filename = argv[1];
-    tuple<VertexSet, EdgeSet, EdgeSet, unordered_map<int, unordered_set<int>>, unordered_map<int, unordered_set<int>>> result = readAndSet(filename);
+    tuple<VertexSet, EdgeSet, EdgeSet, vector<vector<int>>,  vector<vector<int>>> result = readAndSet(filename);
 
     VertexSet vset = get<0>(result);
     EdgeSet eset1 = get<1>(result);
     EdgeSet eset2 = get<2>(result);
-    unordered_map<int, unordered_set<int>> adj1 = get<3>(result);
-    unordered_map<int, unordered_set<int>> adj2 = get<4>(result);
+    vector<vector<int>> adj1 = get<3>(result);
+    vector<vector<int>> adj2 = get<4>(result);
 
     map <string, long long> results = countMotifs(vset, eset1, eset2, adj1, adj2);
 
@@ -530,31 +539,19 @@ int main(int argc, char* argv[]) {
     results["4-5-2"] = (results["4-5-2"] - results["4-3-2"] - results["4-3-5"]);
 
 
-    
-    cout << "Motif Counts:" << endl;
-    for (const auto& motif : results) {
-        cout << "\"" << motif.first << "\"" << " : " << motif.second << "," << endl;
-    }
     auto end_time = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end_time - start_time);
     double seconds = duration.count() / 1000.0; // Convert milliseconds to seconds
 
     cout << fixed << setprecision(3) << "Execution time: " << seconds << " seconds" << endl;
 
-    // // 정점들 출력
-    // vset.print();
-
-    // // edgeSet1 출력
-    // std::cout << "EdgeSet1:" << std::endl;
-    // eset1.print();
-
-    // // edgeSet2 출력
-    // std::cout << "EdgeSet2:" << std::endl;
-    // eset2.print();
-
-    // 간선들의 개수 출력
     std::cout << "Number of edges in EdgeSet1: " << eset1.size() << std::endl;
     std::cout << "Number of edges in EdgeSet2: " << eset2.size() << std::endl;
+    cout << "Motif Counts:" << endl;
+    for (const auto& motif : results) {
+        cout << "\"" << motif.first << "\"" << " : " << motif.second << "," << endl;
+    }
+
 
 
     return 0;
