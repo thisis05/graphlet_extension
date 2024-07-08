@@ -12,13 +12,11 @@
 #include <limits>
 #include <iomanip>
 #include <atomic> 
-#include "vertex.h"
-#include "edge.h"
 
 using namespace std;
 using namespace std::chrono;
 
-tuple<VertexSet, EdgeSet, EdgeSet, vector<vector<int>>, vector<vector<int>>> readAndSet(const string& filename) {
+tuple<vector<pair<int, int>>, vector<pair<int, int>>, vector<vector<int>>, vector<vector<int>>> readAndSet(const string& filename) {
     ifstream file(filename);
     if (!file) {
         cerr << "Failed to open file: " << filename << endl;
@@ -39,30 +37,21 @@ tuple<VertexSet, EdgeSet, EdgeSet, vector<vector<int>>, vector<vector<int>>> rea
     vector<vector<int>> adjVector2(n);
 
     int u, v;
-    VertexSet vertexSet(n);
-    EdgeSet edgeSet1;
-    EdgeSet edgeSet2;
-
+    
     while (file >> u >> v) {
         u--, v--;
         adjVector[u].push_back(v);
         adjVector[v].push_back(u);
     }
     file.close();
-
-    // 정점의 차수를 adjVector의 크기로 설정
-    for (int i = 0; i < n; i++) {
-        vertexSet.addVertex(i);
-        vertexSet.setDegree1(i, adjVector[i].size());
-    }
-
+    
+    vector<pair<int, int>> edgeSet1; 
     for (int u = 0; u < n; u++) {
         for (int v : adjVector[u]) {
             if (u < v)
-                edgeSet1.addEdge(u, v, vertexSet.getDegree1(u), vertexSet.getDegree1(v));
+                edgeSet1.emplace_back(u, v);
         }
     }
-    //edgeSet1.sortEdgesByDegree();
 
     printf("Calculate distance ... \n");
     
@@ -82,7 +71,6 @@ tuple<VertexSet, EdgeSet, EdgeSet, vector<vector<int>>, vector<vector<int>>> rea
                 }
             }
         }
-        vertexSet.setDegree2(start_node, adjVector2[start_node].size());
 
         // 진행 상황 출력
         int completed = completedNodes.fetch_add(1) + 1;
@@ -97,28 +85,19 @@ tuple<VertexSet, EdgeSet, EdgeSet, vector<vector<int>>, vector<vector<int>>> rea
     }
 
 
+    vector<pair<int, int>> edgeSet2; 
     for (int u = 0; u < n; u++) {
         for (int v : adjVector2[u]) {
-            if (u < v){
-                edgeSet2.addEdge(u, v, vertexSet.getDegree2(u), vertexSet.getDegree2(v));
-                //printf("%d %d\n", u, v);
-            }
+            if (u < v)
+                edgeSet2.emplace_back(u, v);
         }
     }
-    //edgeSet2.sortEdgesByDegree();
 
-    return make_tuple(vertexSet, edgeSet1, edgeSet2, adjVector, adjVector2);
+    return make_tuple(edgeSet1, edgeSet2, adjVector, adjVector2);
 }
 
-void removeVec(vector<int>& vec, int value) {
-    auto it = std::find(vec.begin(), vec.end(), value);
-    if (it != vec.end()) {
-        std::iter_swap(it, vec.end() - 1); // 삭제할 원소와 마지막 원소를 교체
-        vec.pop_back(); // 마지막 원소를 삭제
-    }
-}
 
-void getTri1(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<int>>& adj2,
+void getTri1(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj2,
             unordered_set<int>& star2_u, unordered_set<int>& star2_v, 
             unordered_set<int>& tri2, unordered_set<int>& tri3_1, unordered_set<int>& tri3_2, unordered_set<int>& tri4, 
             vector<int>& X1, vector<int>& X2,
@@ -131,9 +110,6 @@ void getTri1(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<
 
     // edge : original edge
     // star3_u : temp for original star version of motif
-
-    int u = e.src;
-    int v = e.dest;
 
     for (auto w : adj1[u]) {
         if (w == v) continue;
@@ -197,15 +173,9 @@ void getTri1(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<
     Chord8 = tri3_1.size() * tri3_2.size();
     Clique10 = tri4.size() * (tri4.size() - 1) / 2;
 
-        
-    //     Path1 = star_u2.size() * star_v2.size();
-    //     Path2 = (star_u2.size() * star_v1.size()) + (star_u1.size() * star_v2.size());
-    //     
-    //     Star1 = (star_u2.size() - 1) * (star_u2.size() -1) + (star_v2.size() - 1) * (star_v2.size() -1);
-    // }
 }
 
-void getTri2(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<int>>& adj2,
+void getTri2(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj2,
             unordered_set<int>& star1_u, unordered_set<int>& star1_v, unordered_set<int>& star2_u, unordered_set<int>& star2_v, 
             unordered_set<int>& tri1, unordered_set<int>& tri2_1, unordered_set<int>& tri2_2, unordered_set<int>& tri3, 
             vector<int>& X1, vector<int>& X2,
@@ -216,10 +186,6 @@ void getTri2(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<
             long long& Chord1, long long& Chord3, long long& Chord4, long long& Chord6,
             long long& Clique8) {
 
-    // edge : extended edge
-
-    int u = e.src;
-    int v = e.dest;
 
     for (auto w : adj1[u]) {
         if (w == v) continue;
@@ -287,11 +253,7 @@ void getTri2(VertexSet& vset, Edge& e, vector<vector<int>>& adj1, vector<vector<
     Chord6 = tri3.size() * tri1.size();
     Clique8 = tri3.size() * (tri3.size() -1) / 2;
 
-           
-    //     Path2 = (star_u2.size() * star_v1.size()) + (star_u1.size() * star_v2.size());
-    //     Path3 = star_u1.size() * star_v1.size();
-    //     Star1 = (star_u2.size() - 1) * (star_u2.size() -1) + (star_v2.size() - 1) * (star_v2.size() -1);
-    // 
+    
 }
 
 
@@ -320,7 +282,7 @@ void getClique(vector<int> X, int value, unordered_set<int>& tri, vector<vector<
 
 
 
-map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, vector<vector<int>>& adj1, vector<vector<int>>& adj2) {
+map<string, long long> countMotifs(vector<pair<int, int>>& e1, vector<pair<int, int>>& e2, vector<vector<int>>& adj1, vector<vector<int>>& adj2) {
     map<string, long long> motifCounts = {
         {"Tri1", 0}, {"Tri2", 0}, {"Tri3", 0}, {"Tri4", 0},
         //clique
@@ -356,7 +318,9 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, ve
         int thread_id = omp_get_thread_num();
     
         #pragma omp for schedule(dynamic) 
-        for (Edge edge : e1.getEdges()) {
+        for (int i = 0; i < e1.size(); i++){
+            int u = e1[i].first;
+            int v = e1[i].second;
             unordered_set<int> star2_u; unordered_set<int> star2_v;
             unordered_set<int> tri2_set; unordered_set<int> tri3_1_set; unordered_set<int> tri3_2_set; unordered_set<int> tri4_set; 
             vector<int> X1(n); vector<int> X2(n);
@@ -366,7 +330,7 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, ve
             long long Tailed3 = 0; long long Tailed6 = 0; long long Tailed8 = 0;
             long long Chord2 = 0; long long Chord5 = 0; long long Chord7 = 0; long long Chord8 = 0;
             long long Clique10 = 0;
-            getTri1(vset, edge, adj1, adj2, star2_u, star2_v, tri2_set, tri3_1_set, tri3_2_set, tri4_set, X1, X2, Tri2, Tri4, Path3, Star2, Tailed3, Tailed6, Tailed8, Chord2, Chord5, Chord7, Chord8, Clique10);
+            getTri1(u, v, adj1, adj2, star2_u, star2_v, tri2_set, tri3_1_set, tri3_2_set, tri4_set, X1, X2, Tri2, Tri4, Path3, Star2, Tailed3, Tailed6, Tailed8, Chord2, Chord5, Chord7, Chord8, Clique10);
             long long Cycle3 = 0;
             
             long long Clique3 = 0; long long Clique7 = 0; long long Clique9 = 0; long long Clique11 = 0;
@@ -409,7 +373,9 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, ve
         }
 
         #pragma omp for schedule(dynamic)
-        for (Edge edge : e2.getEdges()) {
+        for (int i = 0; i < e2.size(); i++){
+            int u = e2[i].first;
+            int v = e2[i].second;
             unordered_set<int> star1_u; unordered_set<int> star1_v; unordered_set<int> star2_u; unordered_set<int> star2_v;
             unordered_set<int> tri1_set; unordered_set<int> tri2_1_set; unordered_set<int> tri2_2_set; unordered_set<int> tri3_set;
             vector<int> X1(n); vector<int> X2(n);
@@ -419,7 +385,7 @@ map<string, long long> countMotifs(VertexSet& vset, EdgeSet& e1, EdgeSet& e2, ve
             long long Tailed1 = 0; long long Tailed2 = 0; long long Tailed4 = 0; long long Tailed5 = 0; long long Tailed7 = 0;
             long long Chord1 = 0; long long Chord3 = 0; long long Chord4 = 0; long long Chord6 = 0;
             long long Clique8 = 0;
-            getTri2(vset, edge, adj1, adj2, star1_u, star1_v, star2_u, star2_v, tri1_set, tri2_1_set, tri2_2_set, tri3_set, X1, X2, Tri1, Tri3, Star1, Path1, Path2, Path4, Tailed1, Tailed2, Tailed4, Tailed5, Tailed7, Chord1, Chord3, Chord4, Chord6, Clique8);
+            getTri2(u, v, adj1, adj2, star1_u, star1_v, star2_u, star2_v, tri1_set, tri2_1_set, tri2_2_set, tri3_set, X1, X2, Tri1, Tri3, Star1, Path1, Path2, Path4, Tailed1, Tailed2, Tailed4, Tailed5, Tailed7, Chord1, Chord3, Chord4, Chord6, Clique8);
             long long Cycle1 = 0; long long Cycle2 = 0;
             long long Clique1 = 0; long long Clique2 = 0; long long Clique4 = 0; long long Clique5 = 0; long long Clique6 = 0; long long Clique10 = 0;
             getCycle(X2, star1_u, adj2, Cycle1);
@@ -484,15 +450,14 @@ int main(int argc, char* argv[]) {
     auto start_time = high_resolution_clock::now();
 
     string filename = argv[1];
-    tuple<VertexSet, EdgeSet, EdgeSet, vector<vector<int>>,  vector<vector<int>>> result = readAndSet(filename);
+    tuple<vector<pair<int, int>>, vector<pair<int, int>>, vector<vector<int>>,  vector<vector<int>>> result = readAndSet(filename);
 
-    VertexSet vset = get<0>(result);
-    EdgeSet eset1 = get<1>(result);
-    EdgeSet eset2 = get<2>(result);
-    vector<vector<int>> adj1 = get<3>(result);
-    vector<vector<int>> adj2 = get<4>(result);
+    vector<pair<int, int>> eset1 = get<0>(result);
+    vector<pair<int, int>> eset2 = get<1>(result);
+    vector<vector<int>> adj1 = get<2>(result);
+    vector<vector<int>> adj2 = get<3>(result);
 
-    map <string, long long> results = countMotifs(vset, eset1, eset2, adj1, adj2);
+    map <string, long long> results = countMotifs(eset1, eset2, adj1, adj2);
 
     //graphlet equation
 
@@ -551,8 +516,6 @@ int main(int argc, char* argv[]) {
     for (const auto& motif : results) {
         cout << "\"" << motif.first << "\"" << " : " << motif.second << "," << endl;
     }
-
-
 
     return 0;
 }

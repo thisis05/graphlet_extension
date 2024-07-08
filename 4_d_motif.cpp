@@ -163,9 +163,7 @@ map<string, long long> countMotifs(vector<vector<int>> dist, const vector<vector
                 int dist_bd = dist[b][d];
                 int dist_cd = dist[c][d]; 
 
-                if (a == 46 & b == 368 & c == 168 & d == 136){
-                    printf("dd");
-                }
+
 
                 //printf("degree : %d and total distance : %d\n", degree, total_distance);
 

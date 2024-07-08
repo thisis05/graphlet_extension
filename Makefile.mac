@@ -1,7 +1,7 @@
 LLVM_DIR = /opt/homebrew/opt/llvm
 OPENMP_LIB ?= 1
 
-all: random_4_d_motif 4_d_motif dTri
+all: random_4_d_motif 4_d_motif dTri dTri_random
 
 CXXFLAGS = -O3 -g -std=c++17
 ifeq ($(OPENMP_LIB),1)
@@ -22,6 +22,9 @@ random_4_d_motif: random_4_d_motif.cpp
 dTri: dTri.cpp vertex.cpp edge.cpp vertex.h edge.h 
 	$(CXX) $(CXXFLAGS) -o dTri dTri.cpp vertex.cpp edge.cpp
 
+dTri_random: dTri_random.cpp vertex.cpp edge.cpp vertex.h edge.h 
+	$(CXX) $(CXXFLAGS) -o dTri_random dTri_random.cpp vertex.cpp edge.cpp
+
 clean:
 	@echo "Removing executables"
-	rm -rf random_4_d_motif 4_d_motif dTri
+	rm -rf random_4_d_motif 4_d_motif dTri dTri_random

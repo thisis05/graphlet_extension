@@ -1,8 +1,17 @@
+import re
 import networkx as nx
 import numpy as np
 import os
 import argparse
 
+# MatrixMarket 파일을 읽고 값들을 교환한 후 정렬하는 함수
+def swap_and_sort_values(data):
+    # 값을 교환하고, 데이터를 오른쪽 값 기준으로 정렬
+    swapped_data = [(u, v) for u, v in data]
+    swapped_data.sort(key=lambda x: (x[0], x[1]))
+    return swapped_data
+
+# mtx 파일을 읽는 함수
 def read_mtx_file(file_path):
     with open(file_path, 'r') as f:
         lines = f.readlines()
@@ -11,26 +20,32 @@ def read_mtx_file(file_path):
     lines = [line for line in lines if not line.startswith('%')]
     
     size_info = lines.pop(0).split()
-    num_rows, num_cols, num_entries = map(int, size_info)
+    num_nodes, _, num_edges = map(int, size_info)
     
     edges = []
     for line in lines:
         i, j = map(int, line.split())
         edges.append((i-1, j-1))
     
-    return num_rows, edges
+    return num_nodes, edges, header
 
-def write_mtx_file(graph, file_path):
+# mtx 파일을 쓰는 함수
+def write_mtx_file(graph, file_path, header):
     with open(file_path, 'w') as f:
-        f.write('%%MatrixMarket matrix coordinate pattern symmetric\n')
+        f.writelines(header)
         f.write(f'{graph.number_of_nodes()} {graph.number_of_nodes()} {graph.number_of_edges()}\n')
         
-        for u, v in graph.edges():
-            f.write(f'{u + 1} {v + 1}\n')
+        # 그래프의 엣지를 리스트로 가져와서 값을 교환하고 정렬
+        edges = list(graph.edges())
+        sorted_edges = swap_and_sort_values(edges)
+        #print(sorted_edges)
+        
+        for u, v in sorted_edges:
+            f.write(f'{v + 1} {u + 1}\n')
 
 def main(input_file):
     file_dir = f'./datasets/{input_file}.mtx'
-    num_nodes, edges = read_mtx_file(file_dir)
+    num_nodes, edges, header = read_mtx_file(file_dir)
 
     G = nx.Graph()
     G.add_edges_from(edges)
@@ -50,7 +65,7 @@ def main(input_file):
         random_graph.remove_edges_from(nx.selfloop_edges(random_graph))
 
         output_file_path = os.path.join(output_dir, f'{input_file}_r{idx}.mtx')
-        write_mtx_file(random_graph, output_file_path)
+        write_mtx_file(random_graph, output_file_path, header)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate random graphs using the configuration model.')
