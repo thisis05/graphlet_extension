@@ -12,6 +12,7 @@
 #include <limits>
 #include <iomanip>
 #include <atomic> 
+#include <algorithm>
 
 using namespace std;
 using namespace std::chrono;
