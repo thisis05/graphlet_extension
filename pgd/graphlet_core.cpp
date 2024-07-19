@@ -629,43 +629,6 @@ void graphlet_core::create_adj_mat() {
 			for (long long j = vertices[i]; j < vertices[i + 1]; j++ )
 				A[i][edges[j]] = 1;
 		}
-
-		// for distance = 2 
-		// -----------------------------------------------------------------------------
-		vector<vector<int>> dist_quad(size, vector<int>(size, 0));
-
-		for (int i = 0; i < size; ++i) {
-			for (int j = 0; j < size; ++j) {
-				for (int k = 0; k < size; ++k) {
-					dist_quad[i][j] += A[i][k] * A[k][j];
-				}
-			}
-		}
-
-		for (int i = 0; i < size; ++i) {
-			for (int j = 0; j < size; ++j) {
-				if (A[i][j] == 0 && dist_quad[i][j] > 0 && i!=j) {
-					A[i][j] = 2;
-				}
-			}
-		}
-
-    	for (int i = 0; i < size; i++) {
-			for (int j = 0; j < size; j++) {
-				if (A[i][j] <= 2 && A[i][j] > 0 && i != j) { // 거리가 2 이하이고 자기 자신이 아닌 경우
-					A[i][j] = 1;
-				}
-			}
-    	}
-		int nn = A.size();
-		for (int i = 0; i < nn; i++) {
-			for (int j = 0; j < nn; j++) {
-				cout << A[i][j] << " ";
-			}
-			cout << endl;
-		}
-
-		// -----------------------------------------------------------------------------
 		if (verbose) cout << "Created adjacency matrix in " << get_time() - sec << " seconds" <<endl;
 	}
 }

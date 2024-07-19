@@ -102,6 +102,7 @@ void getTri1(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj
             unordered_set<int>& star2_u, unordered_set<int>& star2_v, 
             unordered_set<int>& tri2, unordered_set<int>& tri3_1, unordered_set<int>& tri3_2, unordered_set<int>& tri4, 
             vector<int>& X1, vector<int>& X2,
+            long long& Star2_small,
             long long& Tri2,  long long& Tri4,
             long long& Path3,
             long long& Star2,
@@ -163,6 +164,7 @@ void getTri1(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj
         }
     }
 
+    Star2_small = star2_u.size() + star2_v.size();
     Path3 = star2_u.size() * star2_v.size();
     Star2 = (star2_u.size() * (star2_u.size()-1) / 2) + (star2_v.size() * (star2_v.size() - 1) / 2);
     Tailed3 = (star2_u.size() + star2_v.size()) * tri2.size();
@@ -180,6 +182,7 @@ void getTri2(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj
             unordered_set<int>& star1_u, unordered_set<int>& star1_v, unordered_set<int>& star2_u, unordered_set<int>& star2_v, 
             unordered_set<int>& tri1, unordered_set<int>& tri2_1, unordered_set<int>& tri2_2, unordered_set<int>& tri3, 
             vector<int>& X1, vector<int>& X2,
+            long long& Star1_small,
             long long& Tri1, long long& Tri3,
             long long& Star1,
             long long& Path1, long long& Path2, long long& Path4,
@@ -239,6 +242,7 @@ void getTri2(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj
         }
     }
 
+    Star1_small = star1_u.size() + star1_v.size();
     Star1 = (star1_u.size()  * (star1_u.size() -1))/2 + (star1_v.size()  * (star1_v.size() -1))/2;
     Path1 = star1_u.size() * star1_v.size();
     Path2 = (star2_u.size() * star1_v.size()) + (star1_u.size() * star2_v.size());
@@ -254,7 +258,7 @@ void getTri2(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj
     Chord6 = tri3.size() * tri1.size();
     Clique8 = tri3.size() * (tri3.size() -1) / 2;
 
-    
+
 }
 
 
@@ -285,6 +289,8 @@ void getClique(vector<int> X, int value, unordered_set<int>& tri, vector<vector<
 
 map<string, long long> countMotifs(vector<pair<int, int>>& e1, vector<pair<int, int>>& e2, vector<vector<int>>& adj1, vector<vector<int>>& adj2) {
     map<string, long long> motifCounts = {
+        {"Star1", 0}, {"Star2", 0},
+
         {"Tri1", 0}, {"Tri2", 0}, {"Tri3", 0}, {"Tri4", 0},
         //clique
         {"4-1-1", 0}, {"4-1-2", 0}, {"4-1-3", 0}, {"4-1-4", 0}, {"4-1-5", 0}, {"4-1-6", 0}, {"4-1-7", 0}, {"4-1-8", 0}, {"4-1-9", 0}, {"4-1-10", 0}, {"4-1-11", 0},
@@ -325,13 +331,14 @@ map<string, long long> countMotifs(vector<pair<int, int>>& e1, vector<pair<int, 
             unordered_set<int> star2_u; unordered_set<int> star2_v;
             unordered_set<int> tri2_set; unordered_set<int> tri3_1_set; unordered_set<int> tri3_2_set; unordered_set<int> tri4_set; 
             vector<int> X1(n); vector<int> X2(n);
+            long long Star2_small = 0;
             long long Tri2 = 0; long long Tri4 = 0;
             long long Path3 = 0;
             long long Star2 = 0;
             long long Tailed3 = 0; long long Tailed6 = 0; long long Tailed8 = 0;
             long long Chord2 = 0; long long Chord5 = 0; long long Chord7 = 0; long long Chord8 = 0;
             long long Clique10 = 0;
-            getTri1(u, v, adj1, adj2, star2_u, star2_v, tri2_set, tri3_1_set, tri3_2_set, tri4_set, X1, X2, Tri2, Tri4, Path3, Star2, Tailed3, Tailed6, Tailed8, Chord2, Chord5, Chord7, Chord8, Clique10);
+            getTri1(u, v, adj1, adj2, star2_u, star2_v, tri2_set, tri3_1_set, tri3_2_set, tri4_set, X1, X2, Star2_small, Tri2, Tri4, Path3, Star2, Tailed3, Tailed6, Tailed8, Chord2, Chord5, Chord7, Chord8, Clique10);
             long long Cycle3 = 0;
             
             long long Clique3 = 0; long long Clique7 = 0; long long Clique9 = 0; long long Clique11 = 0;
@@ -340,6 +347,7 @@ map<string, long long> countMotifs(vector<pair<int, int>>& e1, vector<pair<int, 
             getClique(X2, 4, tri4_set, adj2, Clique7);
             getClique(X2, 4, tri4_set, adj1, Clique9);
             getClique(X1, 4, tri4_set, adj1, Clique11);
+            thread_motifCounts[thread_id]["Star2"] += Star2_small;
             thread_motifCounts[thread_id]["Tri2"] += Tri2;
             thread_motifCounts[thread_id]["Tri4"] += Tri4;
             thread_motifCounts[thread_id]["4-1-3"] += Clique3;
@@ -380,13 +388,14 @@ map<string, long long> countMotifs(vector<pair<int, int>>& e1, vector<pair<int, 
             unordered_set<int> star1_u; unordered_set<int> star1_v; unordered_set<int> star2_u; unordered_set<int> star2_v;
             unordered_set<int> tri1_set; unordered_set<int> tri2_1_set; unordered_set<int> tri2_2_set; unordered_set<int> tri3_set;
             vector<int> X1(n); vector<int> X2(n);
+            long long Star1_small = 0;
             long long Tri1 = 0; long long Tri3 = 0; 
             long long Star1 = 0;
             long long Path1 = 0; long long Path2 = 0; long long Path4 = 0;
             long long Tailed1 = 0; long long Tailed2 = 0; long long Tailed4 = 0; long long Tailed5 = 0; long long Tailed7 = 0;
             long long Chord1 = 0; long long Chord3 = 0; long long Chord4 = 0; long long Chord6 = 0;
             long long Clique8 = 0;
-            getTri2(u, v, adj1, adj2, star1_u, star1_v, star2_u, star2_v, tri1_set, tri2_1_set, tri2_2_set, tri3_set, X1, X2, Tri1, Tri3, Star1, Path1, Path2, Path4, Tailed1, Tailed2, Tailed4, Tailed5, Tailed7, Chord1, Chord3, Chord4, Chord6, Clique8);
+            getTri2(u, v, adj1, adj2, star1_u, star1_v, star2_u, star2_v, tri1_set, tri2_1_set, tri2_2_set, tri3_set, X1, X2, Star1_small, Tri1, Tri3, Star1, Path1, Path2, Path4, Tailed1, Tailed2, Tailed4, Tailed5, Tailed7, Chord1, Chord3, Chord4, Chord6, Clique8);
             long long Cycle1 = 0; long long Cycle2 = 0;
             long long Clique1 = 0; long long Clique2 = 0; long long Clique4 = 0; long long Clique5 = 0; long long Clique6 = 0; long long Clique10 = 0;
             getCycle(X2, star1_u, adj2, Cycle1);
@@ -397,6 +406,7 @@ map<string, long long> countMotifs(vector<pair<int, int>>& e1, vector<pair<int, 
             getClique(X1, 4, tri2_1_set, adj2, Clique5);
             getClique(X1, 4, tri2_2_set, adj2, Clique5);
             getClique(X2, 4, tri3_set, adj1, Clique6);
+            thread_motifCounts[thread_id]["Star1"] += Star1_small;
             thread_motifCounts[thread_id]["Tri1"] += Tri1;
             thread_motifCounts[thread_id]["Tri3"] += Tri3;
             thread_motifCounts[thread_id]["4-1-1"] += Clique1;
@@ -461,7 +471,7 @@ int main(int argc, char* argv[]) {
     map <string, long long> results = countMotifs(eset1, eset2, adj1, adj2);
 
     //graphlet equation
-
+    results["Star1"] /= 2;
     results["Tri1"] /= 3; results["Tri4"] /= 3;
 
     // for cycle
