@@ -17,7 +17,24 @@
 using namespace std;
 using namespace std::chrono;
 
-tuple<vector<pair<int, int>>, vector<pair<int, int>>, vector<vector<int>>, vector<vector<int>>> readAndSet(const string& filename) {
+vector<long long> vertices;
+vector<int> edges;
+map<int, vector<long long>> edgeSet;
+unordered_map<int, unordered_map<int, short>> adjMat;
+unsigned long long Star1, Star2;
+unsigned long long Tri1, Tri2, Tri3, Tri4;
+int n, m, max_degree;
+
+void get_max_degree(){
+    int degree = 0;
+    max_degree = 0;
+    for (long long v=0; v<n; v++) {
+        degree = vertices[v+1] - vertices[v];
+        if (max_degree < degree)  max_degree = degree;
+    }
+}
+
+void readAndSet(const string& filename) {
     ifstream file(filename);
     if (!file) {
         cerr << "Failed to open file: " << filename << endl;
@@ -29,13 +46,11 @@ tuple<vector<pair<int, int>>, vector<pair<int, int>>, vector<vector<int>>, vecto
         if (line[0] != '%') break;
     }
 
-    int n, m;
     istringstream iss(line);
     iss >> n >> n >> m;
 
     printf("Read File ... \n");
-    vector<vector<int>> adjVector(n);
-    vector<vector<int>> adjVector2(n);
+    map<int, vector<int>> adjVector;  // Use vector<vector<int>> for adjVector
 
     int u, v;
     
@@ -43,198 +58,126 @@ tuple<vector<pair<int, int>>, vector<pair<int, int>>, vector<vector<int>>, vecto
         u--, v--;
         adjVector[v].push_back(u);
         adjVector[u].push_back(v);
+        adjMat[u][v] = 1;
+        adjMat[v][u] = 1;
+        edgeSet[v].push_back(u);
     }
     file.close();
+
+    printf("Preprocessing ... \n");
+    vertices.push_back(0);
+    for (int i=0; i < adjVector.size(); i++) {
+        edges.insert(edges.end(), adjVector[i].begin(),adjVector[i].end());
+        vertices.push_back(edges.size());
+    }
+
+    adjVector.clear();
+    get_max_degree();
+}
+
+
+void get3size(long long & u, long long & v,  unsigned long long & tri_count, 
+		vector<long long> & wedge, unsigned long long & wedge_count, unordered_map<int, unordered_map<int, short>>& adjMat) {
+	
+    wedge_count += vertices[u+1] - vertices[u] - 1;
+
+    for (long long j = vertices[v]; j < vertices[v+1]; ++j) {
+		long long w = edges[j];
+		if (w==u) { continue; }
+		if (adjMat[u][w] == 1) {
+			tri_count++;
+		}
+		else {
+            if (adjMat[u][w] == 0){
+                wedge.push_back(w);
+                adjMat[u][w] = 2;
+            }
+            wedge_count++;
+		}
+	}
+}
+
+void wedgebasedCount(long long& u, vector<long long> & wedge, unsigned long long & tri1_count, unsigned long long & tri2_count,
+    unsigned long long& star1_count,  unordered_map<int, unordered_map<int, short>>& adjMat){
     
-    vector<pair<int, int>> edgeSet1; 
-    for (int u = 0; u < n; u++) {
-        for (int v : adjVector[u]) {
-            if (u < v)
-                edgeSet1.emplace_back(u, v);
+    for (long long w1 : wedge){
+        for (long long w2 : wedge){
+            if (w1 == w2) continue;
+            short value = adjMat[w1][w2];
+            if (value == 1){
+                tri2_count++;
+            }
+            else if (value == 2){
+                tri1_count++;
+            }
+            else {
+                star1_count++;
+            }
         }
     }
+}
 
-    printf("Calculate distance ... \n");
+
+void countMotifs() {
     
-    atomic<int> completedNodes(0);
-
-    #pragma omp parallel for
-    for (int start_node = 0; start_node < n; start_node++) {
-        unordered_set<int> alreadyNeighbors;
-        for (const auto& second_node : adjVector[start_node]) {
-            for (const auto& final_node : adjVector[second_node]) {
-                if (start_node != final_node && !binary_search(adjVector[start_node].begin(), adjVector[start_node].end(), final_node)) {
-                    #pragma omp critical
-                    {
-                        if (alreadyNeighbors.insert(final_node).second)
-                            adjVector2[start_node].push_back(final_node);
-                    }
-                }
-            }
-        }
-
-        // 진행 상황 출력
-        int completed = completedNodes.fetch_add(1) + 1;
-        if (completed % (n / 10) == 0 || completed == n) {
-            int thread_id = omp_get_thread_num();
-            int num_threads = omp_get_num_threads();
-            #pragma omp critical
-            {
-                cout << "Completed Nodes : " << completed << " / " << n << endl;
-            }
-        }
-    }
-
-
-    vector<pair<int, int>> edgeSet2; 
-    for (int u = 0; u < n; u++) {
-        for (int v : adjVector2[u]) {
-            if (u < v)
-                edgeSet2.emplace_back(u, v);
-        }
-    }
-
-    return make_tuple(edgeSet1, edgeSet2, adjVector, adjVector2);
-}
-
-
-void get3size(int& u, int& v, vector<vector<int>>& adj1, vector<vector<int>>& adj2,
-            unordered_set<int>& star_u, unordered_set<int>& star_v, unordered_set<int>& star2_u, unordered_set<int>& star2_v, 
-            vector<int>& X1, vector<int>& X2,
-            long long& Star1, long long& Star2, 
-            long long& Tri1, long long& Tri2, long long& Tri3, long long& Tri4) {
-
-    // edge : original edge
-    // star3_u : temp for original star version of motif
-
-    for (auto w : adj1[u]) {
-        if (w == v) continue;
-        X1[w] = 1;
-        Tri3++;
-        star_u.insert(w);
-    }
-
-    for (auto w : adj1[v]) {
-        if (w == u) continue;
-        if (X1[w] == 1) {
-            Tri3--;
-            Tri4++;
-            X1[w] = 3;
-            star_u.erase(w);
-        }
-        else {
-            Tri3++;
-            star_v.insert(w);
-            X1[w] = 2;     
-        }
-    }
-
-    for (auto w : adj2[u]) {
-        if(X1[w] == 2) continue;
-        X2[w] = 1;
-        Star2++;
-        star2_u.insert(w);
-    }
-
-    for (auto w : adj2[v]) {
-        if (X1[w] == 1) continue;
-        if (X2[w] == 1) {
-            X2[w] = 3;
-            Tri2++;
-            Star2--;
-            star2_u.erase(w);
-        }
-        else {
-            Star2++;
-            star2_v.insert(w);
-            X2[w] = 2;
-        }
-    }
-
-    Star1 = star_u.size() * star2_v.size();
-    Tri1 = (star_u.size() * (star_u.size() - 1) / 2) + (star_v.size() * (star_v.size() - 1) / 2); 
-}
-
-void getTri1(vector<int> X, unordered_set<int>& star, int value, vector<vector<int>>& adj, long long& Tri){
-    for (int w : star){
-        for (int r : adj[w]){
-            if (X[r] == value) {
-                Tri +=1;
-            }
-        }
-        X[w] = 0;
-    }
-}
-
-
-
-map<string, long long> countMotifs(vector<pair<int, int>>& e1, vector<pair<int, int>>& e2, vector<vector<int>>& adj1, vector<vector<int>>& adj2) {
-    map<string, long long> motifCounts = {
-        {"Star1", 0}, {"Star2", 0},
-        {"Tri1", 0}, {"Tri2", 0}, {"Tri3", 0}, {"Tri4", 0}
-    };
-    int n = adj1.size();
-
+    long long v, u, w;
+    vector<long long> wedge(max_degree+1, 0);
     int max_num_workers = omp_get_max_threads() - 1;
     omp_set_num_threads(max_num_workers);
-    int total_e1 = e1.size();
-    int total_e2 = e2.size();
     printf("Get Max Thread : %d\n", max_num_workers);
-    vector<map<string, long long>> thread_motifCounts(max_num_workers, motifCounts);
-
+    vector<vector<unsigned long long>> thread_motifCounts(max_num_workers, vector<unsigned long long>(6,0));
+    int wedge_idx = 0;
     int progress1 = 0;
-    int next_progress1_update = total_e1 / 10;
-
-    int progress2 = 0;
-    //int next_progress2_update = total_e2 / 20;
-    // start parallel
-    #pragma omp parallel
-    {
-        int thread_id = omp_get_thread_num();
+    int next_progress1_update = n / 10;
     
-        #pragma omp for schedule(dynamic) 
-        for (int i = 0; i < e1.size(); i++){
-            int u = e1[i].first;
-            int v = e1[i].second;
-            unordered_set<int> star_u; unordered_set<int> star_v; unordered_set<int> star2_u; unordered_set<int> star2_v;
-            vector<int> X1(n); vector<int> X2(n);
-            long long Star1 = 0; long long Star2 = 0;
-            long long Tri1 = 0; long long Tri2 = 0; long long Tri3 = 0; long long Tri4 = 0;
-            get3size(u, v, adj1, adj2, star_u, star_v, star2_u, star2_v, X1, X2, Star1, Star2, Tri1, Tri2, Tri3, Tri4);
-            long long Tri1_plus = 0; long long Tri1_minus = 0; 
-            getTri1(X2, star2_u, 2, adj1, Tri1_plus);
-            printf("%lld\n", Tri1_plus);
-            getTri1(X1, star_u, 1, adj1, Tri1_minus);
-            getTri1(X1, star_v, 1, adj1, Tri1_minus);
-            //getTri1(X2, star2_v, 1, adj2, Tri1_2);
-            Tri1 = Tri1 + (Tri1_plus / 6) - Tri1_minus;
-            thread_motifCounts[thread_id]["Star1"] += Star1;
-            thread_motifCounts[thread_id]["Star2"] += Star2;
-            thread_motifCounts[thread_id]["Tri1"] += Tri1;
-            thread_motifCounts[thread_id]["Tri2"] += Tri2;
-            thread_motifCounts[thread_id]["Tri3"] += Tri3;
-            thread_motifCounts[thread_id]["Tri4"] += Tri4;
-            #pragma omp atomic
-            progress1++;
-            if (progress1 == next_progress1_update) {
-                #pragma omp critical
-                {
-                    if (progress1 >= next_progress1_update) {
-                        printf("Edge 1 Progress: %d / %d (%d%%)\n", progress1, total_e1, (progress1 * 100) / total_e1);
-                        next_progress1_update += total_e1 / 10;  
-                    }
+        
+    // start parallel
+    #pragma omp parallel for schedule(dynamic, 64) \
+        firstprivate(adjMat) private(v,u,w,wedge)
+    
+    for (long long u = 0; u < n; u++){
+        unsigned long long wedge_count = 0, tri_count = 0;
+        int thread_id = omp_get_thread_num();
+        for (long long j = vertices[u]; j < vertices[u+1]; ++j) {
+            long long v = edges[j];
+            get3size(v, u, tri_count, wedge, wedge_count, adjMat);
+        }
+        unsigned long long tri1_count = 0, tri2_count = 0, star1_count = 0;
+        //wedgebasedCount(u, wedge, tri1_count, tri2_count, star1_count, adjMat);
+        thread_motifCounts[thread_id][0] += star1_count;
+        thread_motifCounts[thread_id][2] += tri1_count;
+        thread_motifCounts[thread_id][3] += tri2_count;
+        thread_motifCounts[thread_id][4] += wedge_count - tri_count;
+        thread_motifCounts[thread_id][5] += tri_count;
+        #pragma omp atomic
+        progress1++;
+        if (progress1 == next_progress1_update) {
+            #pragma omp critical
+            {
+                if (progress1 >= next_progress1_update) {
+                    printf("Edge Progress: %d / %d (%d%%)\n", progress1, n, (progress1 * 100) / n);
+                    next_progress1_update += n / 10;  
                 }
             }
         }
     } // end parallel
 
-    for (int i = 0; i < max_num_workers; i++) {
-        for (const auto& motif : thread_motifCounts[i]) {
-            motifCounts[motif.first] += motif.second;
-        }
+    vector<unsigned long long> motifCount(6, 0);
+    for (int i = 0; i < max_num_workers; ++i) {
+        motifCount[0] += thread_motifCounts[i][0];
+        motifCount[1] += thread_motifCounts[i][1];
+        motifCount[2] += thread_motifCounts[i][2];
+        motifCount[3] += thread_motifCounts[i][3];
+        motifCount[4] += thread_motifCounts[i][4];
+        motifCount[5] += thread_motifCounts[i][5];
     }
 
-    return motifCounts;
+    Star1 = motifCount[0];
+    Star2 = motifCount[1];
+    Tri1 = motifCount[2];
+    Tri2 = motifCount[3];
+    Tri3 = motifCount[4];
+    Tri4 = motifCount[5];
 }
 
 int main(int argc, char* argv[]) {
@@ -245,30 +188,29 @@ int main(int argc, char* argv[]) {
     auto start_time = high_resolution_clock::now();
 
     string filename = argv[1];
-    tuple<vector<pair<int, int>>, vector<pair<int, int>>, vector<vector<int>>,  vector<vector<int>>> result = readAndSet(filename);
-
-    vector<pair<int, int>> eset1 = get<0>(result);
-    vector<pair<int, int>> eset2 = get<1>(result);
-    vector<vector<int>> adj1 = get<2>(result);
-    vector<vector<int>> adj2 = get<3>(result);
-
-    map <string, long long> results = countMotifs(eset1, eset2, adj1, adj2);
+    readAndSet(filename);
+    countMotifs();
 
     //graphlet equation
-    results["Tri1"] /= 3; results["Tri3"] /= 2; results["Tri4"] /= 3;
+    Tri3 /= 4; Tri4 /= 6;
 
     auto end_time = high_resolution_clock::now();
     auto duration = duration_cast<milliseconds>(end_time - start_time);
     double seconds = duration.count() / 1000.0; // Convert milliseconds to seconds
 
-    cout << fixed << setprecision(3) << "Execution time: " << seconds << " seconds" << endl;
+    std::cout << fixed << setprecision(3) << "Execution time: " << seconds << " seconds" << endl;
 
-    std::cout << "Number of edges in EdgeSet1: " << eset1.size() << std::endl;
-    std::cout << "Number of edges in EdgeSet2: " << eset2.size() << std::endl;
-    cout << "Motif Counts:" << endl;
-    for (const auto& motif : results) {
-        cout << "\"" << motif.first << "\"" << " : " << motif.second << "," << endl;
-    }
+    std::cout << "Number of vertices : " << n << std::endl;
+    std::cout << "Number of edges : " << m << std::endl;
+    std::cout << "Max degree : " << max_degree << std::endl;
+
+    std::cout << "Motif Counts:" << endl;
+    std::cout << "\"Star1\"" << " : " << Star1 << "," << endl;
+    std::cout << "\"Star2\"" << " : " << Star2 << "," << endl;
+    std::cout << "\"Tri1\"" << " : " << Tri1 << "," << endl;
+    std::cout << "\"Tri2\"" << " : " << Tri2 << "," << endl;
+    std::cout << "\"Tri3\"" << " : " << Tri3 << "," << endl;
+    std::cout << "\"Tri4\"" << " : " << Tri4 << endl;
 
     return 0;
 }
