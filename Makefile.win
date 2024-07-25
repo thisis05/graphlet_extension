@@ -1,7 +1,7 @@
 LLVM_DIR = C:/Program Files/LLVM
 OPENMP_LIB ?= 1
 
-all: dTri.exe dTri_random.exe d_motif_3.exe d_motif_3_random.exe d_motif_3_new.exe
+all: dTri.exe dTri_random.exe d_motif_3.exe d_motif_3_random.exe d_motif_3_new.exe count_dMotif.exe
 
 CXXFLAGS = -O3 -g -std=c++17
 ifeq ($(OPENMP_LIB),1)
@@ -28,8 +28,11 @@ d_motif_3_random.exe: d_motif_3_random.cpp
 d_motif_3_new.exe: d_motif_3_new.cpp
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o d_motif_3_new.exe d_motif_3_new.cpp
 
+count_dMotif.exe: count_dMotif.cpp
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o count_dMotif.exe count_dMotif.cpp
+
 clean:
 	@echo "Removing executables"
-	del dTri.exe dTri_random.exe d_motif_3.exe d_motif_3_random.exe d_motif_3_new.exe
+	del dTri.exe dTri_random.exe d_motif_3.exe d_motif_3_random.exe d_motif_3_new.exe count_dMotif.exe
 
 
