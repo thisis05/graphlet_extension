@@ -1,0 +1,21 @@
+LLVM_DIR = C:/Program Files/LLVM
+OPENMP_LIB ?= 1
+
+all: main.exe
+
+CXXFLAGS = -O3 -g -std=c++17
+ifeq ($(OPENMP_LIB),1)
+    CXXFLAGS += -fopenmp
+    LDFLAGS += -fopenmp
+endif
+CXXFLAGS += -ffast-math -funroll-loops -fno-strict-aliasing \
+          -fomit-frame-pointer -march=native
+
+CXX = "$(LLVM_DIR)/bin/clang++"
+
+main.exe: main.cpp graph.cpp counter.cpp 
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o main.exe main.cpp graph.cpp counter.cpp
+
+clean:
+	@echo "Removing executables"
+	del main.exe
