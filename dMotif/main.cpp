@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
     std::cout << fixed << setprecision(3) << "Execution time: " << seconds << " seconds" << endl;
 
     #ifdef PRINT_CSR
+    printf("\nEdge 1 ------------------------------------------\n\n");
     printf("Offsets (Out): ");
     for (VertexIdx i = 0; i <= dag.nVertices; ++i) {
         printf("%lld ", dag.out_offsets[i]);
@@ -77,8 +78,49 @@ int main(int argc, char* argv[]) {
         printf("%lld ", dag.verticesDegree[i]);
     }
     printf("\n");
-    #endif
+
+    printf("\nEdge 2 ------------------------------------------\n\n");
+    printf("Offsets (Out 2): ");
+    for (VertexIdx i = 0; i <= dag.nVertices; ++i) {
+        printf("%lld ", dag.out_offsets2[i]);
+    }
+    printf("\n");
+
+    printf("Sources (Out 2): ");
+    for (EdgeIdx i = 0; i < dag.nEdges2; ++i) {
+        printf("%lld ", dag.out_srcs2[i]);
+    }
+    printf("\n");
+
+    printf("Destinations (Out 2): ");
+    for (EdgeIdx i = 0; i < dag.nEdges2; ++i) {
+        printf("%lld ", dag.out_dsts2[i]);
+    }
+    printf("\n");
     
+    printf("Offsets (In 2): ");
+    for (VertexIdx i = 0; i <= dag.nVertices; ++i) {
+        printf("%lld ", dag.in_offsets2[i]);
+    }
+    printf("\n");
+
+    printf("Sources (In 2): ");
+    for (EdgeIdx i = 0; i < dag.nEdges2; ++i) {
+        printf("%lld ", dag.in_srcs2[i]);
+    }
+    printf("\n");
+
+    printf("Destinations (In 2): ");
+    for (EdgeIdx i = 0; i < dag.nEdges2; ++i) {
+        printf("%lld ", dag.in_dsts2[i]);
+    }
+    printf("\n");
+
+    printf("Degree 2: ");
+    for (VertexIdx i = 0; i < dag.nVertices; ++i) {
+        printf("%lld ", dag.verticesDegree2[i]);
+    }
+    #endif
     
     return 0;
 }
