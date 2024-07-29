@@ -1,80 +1,66 @@
 #include "graph.h"
+#include "JointSort.h"
 #include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <string>  
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <omp.h>
 
-Graph::Graph() : nVertices(0), nEdges(0), 
-                out_srcs(nullptr), out_dsts(nullptr), in_srcs(nullptr), in_dsts(nullptr), verticesDegree(nullptr), out_offsets(nullptr), in_offsets(nullptr), 
-                out_srcs2(nullptr), out_dsts2(nullptr), in_srcs2(nullptr), in_dsts2(nullptr), verticesDegree2(nullptr), out_offsets2(nullptr), in_offsets2(nullptr),
-                adjVector(nullptr), adjVector2(nullptr) {}
 
-Graph::~Graph() {
-    delete[] out_srcs;
-    delete[] out_dsts;
-    delete[] in_srcs;
-    delete[] in_dsts;
-    delete[] verticesDegree;
-    delete[] out_offsets;
-    delete[] in_offsets;
-    delete[] out_srcs2;
-    delete[] out_dsts2;
-    delete[] in_srcs2;
-    delete[] in_dsts2;
-    delete[] verticesDegree2;
-    delete[] out_offsets2;
-    delete[] in_offsets2;
-    delete adjVector;
-    delete adjVector2;
+Graph Graph::copy() const
+{
+  Graph ret = newGraph(nVertices, nEdges);
+  std::copy(srcs, srcs + nEdges, ret.srcs);
+  std::copy(dsts, dsts + nEdges, ret.dsts);
+  return ret;
 }
 
-void makeCSR(Graph& graph, int etype){
+Graph newGraph(VertexIdx nVertices, EdgeIdx nEdges)
+{
+  return {nVertices, nEdges, new VertexIdx[nEdges], new VertexIdx[nEdges]};
+}
 
-    if (etype == 1){
-        graph.out_offsets = new EdgeIdx[graph.nVertices + 1]();
-        std::fill(graph.out_offsets, graph.out_offsets + graph.nVertices+1, 0);
+CGraph newCGraph(VertexIdx nVertices, EdgeIdx nEdges)
+{
+  return {nVertices, nEdges, new EdgeIdx[nVertices + 1], new VertexIdx[nEdges]};
+}
 
-        graph.in_offsets = new EdgeIdx[graph.nVertices + 1]();
-        std::fill(graph.in_offsets, graph.in_offsets + graph.nVertices+1, 0);
-
-        for (EdgeIdx i = 0; i < graph.nEdges; ++i){
-            auto out_src = graph.out_srcs[i];
-            auto in_src = graph.in_srcs[i];
-            graph.out_offsets[out_src+1]++;
-            graph.in_offsets[in_src+1]++; 
-        }
-        
-        for (EdgeIdx i = 0; i < graph.nVertices+1; ++i){
-            graph.out_offsets[i+1] += graph.out_offsets[i]; 
-            graph.in_offsets[i+1] += graph.in_offsets[i]; 
-        }
+void CGraph::sortById() const
+{
+    for (VertexIdx i=0; i < nVertices; i++){
+        std::sort(nbors+offsets[i],nbors+offsets[i+1]);
     }
-    else {
-        graph.out_offsets2 = new EdgeIdx[graph.nVertices + 1]();
-        std::fill(graph.out_offsets2, graph.out_offsets2 + graph.nVertices+1, 0);
+}
 
-        graph.in_offsets2 = new EdgeIdx[graph.nVertices + 1]();
-        std::fill(graph.in_offsets2, graph.in_offsets2 + graph.nVertices+1, 0);
+CGraph makeCSR(Graph& g){
 
-        for (EdgeIdx i = 0; i < graph.nEdges2; ++i){
-            auto out_src2 = graph.out_srcs2[i];
-            auto in_src2 = graph.in_srcs2[i];
-            graph.out_offsets2[out_src2+1]++;
-            graph.in_offsets2[in_src2+1]++; 
-        }
-        
-        for (EdgeIdx i = 0; i < graph.nVertices+1; ++i){
-            graph.out_offsets2[i+1] += graph.out_offsets2[i]; 
-            graph.in_offsets2[i+1] += graph.in_offsets2[i]; 
-        }
+    auto tmpG = g.copy();
+    auto begin = JSIterator<VertexIdx, VertexIdx>{tmpG.srcs, tmpG.dsts};
+    auto end   = begin + tmpG.nEdges;
+    std::sort(begin, end);
+
+    //We steal the dsts array from tmpG.
+    CGraph ret = {g.nVertices, g.nEdges, new EdgeIdx[g.nVertices + 1], tmpG.dsts};
+
+    //Now we have everything sorted by src, compress:
+    VertexIdx cv = 0;
+    for (EdgeIdx i = 0; i < tmpG.nEdges; ++i)
+    {
+        auto src = tmpG.srcs[i];
+        while (cv <= src)
+        ret.offsets[cv++] = i;
     }
+    while (cv <= g.nVertices)
+        ret.offsets[cv++] = g.nEdges;
 
-    // Already Sorted by VertexID (MTX FIle case)
-    // If you want to input a some other files (such as .edges..), some manipulation will be needed. (Like a sortById)
+    delete[] tmpG.srcs; //we retain tmpG.dsts in the output
+
+    ret.sortById();
+
+    return ret;
 }
 
 bool compareDegree(Pair firstPair, Pair nextPair) {
@@ -83,147 +69,123 @@ bool compareDegree(Pair firstPair, Pair nextPair) {
     return firstPair.first < nextPair.first;
 }
 
-Graph Graph::renameByDegreeOrder() const {
-    Graph ret;
-    ret.nVertices = nVertices;
-    ret.nEdges = nEdges;
-    ret.out_srcs = new VertexIdx[nEdges]();
-    ret.out_dsts = new VertexIdx[nEdges]();
-    ret.in_srcs = new VertexIdx[nEdges]();
-    ret.in_dsts = new VertexIdx[nEdges]();
-    ret.verticesDegree = new VertexIdx[nVertices]();
-    std::fill(ret.out_dsts, ret.out_dsts + ret.nEdges, 0);
-    std::fill(ret.in_dsts, ret.in_dsts + ret.nEdges, 0);
+CGraph CGraph::renameByDegreeOrder() const
+{
+    CGraph ret = newCGraph(nVertices, nEdges);
+    // std::unordered_map<long long, std::unordered_map<long long, long long>> adjMat;
+    Pair *deg_info = new Pair[nVertices];
 
-    Pair* deg_info = new Pair[nVertices];
-    VertexIdx* mapping = new VertexIdx[nVertices];
-    VertexIdx* inverse = new VertexIdx[nVertices];
+    VertexIdx *mapping = new VertexIdx[nVertices];
+    VertexIdx *inverse = new VertexIdx[nVertices];
+
 
     // Construct array of pairs, storing old vertex label and degree
-    for (VertexIdx i = 0; i < nVertices; i++) {
+    for (VertexIdx i=0; i < nVertices; i++)
+    {
         deg_info[i].first = i;
-        deg_info[i].second = verticesDegree[i];
+        deg_info[i].second = offsets[i+1]-offsets[i];
     }
 
-    // Sort the pairs by degree (if degree is same, sort by old vertex label)
-    std::sort(deg_info, deg_info + nVertices, compareDegree);
+    // sort the pairs by degree (if degree is same, sort by old vertex label)
+    std::sort(deg_info,deg_info+nVertices, compareDegree);
 
-    for (VertexIdx i = 0; i < nVertices; i++) {
+    // Construct the mapping of old vertex label to new vertex label
+    // So mapping[i] is what i is mapped to
+    // And inverse[i] is what maps to i
+    for (VertexIdx i=0; i < nVertices; i++)
+    {
         mapping[deg_info[i].first] = i;
         inverse[i] = deg_info[i].first;
     }
 
-    EdgeIdx current_out = 0;
-    EdgeIdx current_in = 0;
-    for (VertexIdx new_label = 0; new_label < nVertices; new_label++) {
-        VertexIdx old_label = inverse[new_label];
-        ret.verticesDegree[new_label] = verticesDegree[old_label];
-        for (const auto& neighbor : (*adjVector)[old_label]) {
-            VertexIdx new_nbr = mapping[neighbor];
-            if (new_nbr <= new_label) {
-                ret.in_dsts[current_in] = new_nbr;
-                ret.in_srcs[current_in] = new_label;
-                current_in++;
-            }
-            else{
-                ret.out_dsts[current_out] = new_nbr;
-                ret.out_srcs[current_out] = new_label;
-                current_out++;
-            }  
+    // Initialize offsets of output CGraph
+    ret.offsets[0] = 0;
+    EdgeIdx current = 0;
+
+    int64_t cur_maxDegree = 0;
+    int64_t new_maxDegree = 0;
+
+    // Loop over new vertices
+    for (VertexIdx new_label=0; new_label < nVertices; new_label++)
+    {
+        VertexIdx old_label = inverse[new_label]; // corresponding old label for new vertices
+        for (EdgeIdx pos = offsets[old_label]; pos < offsets[old_label+1]; pos++) // loop over neighbors of old label
+        {
+            VertexIdx old_nbr = nbors[pos];
+            VertexIdx new_nbr = mapping[old_nbr]; //corresponding new neighbor
+            ret.nbors[current] = new_nbr; // insert new neighbor in nbors of output
+
+            // adjMat[new_label][new_nbr] = 1;
+            // adjMat[new_nbr][new_label] = 1;
+            current++;
+        }
+        ret.offsets[new_label+1] = current; // all neighbors of new_label have been added, so we set offset for new_label+1
+        new_maxDegree = ret.degree(new_label);
+        if (cur_maxDegree < new_maxDegree){
+            cur_maxDegree = new_maxDegree;
         }
     }
+    //ret.adj_matrix = adjMat;
+    ret.maxDegree = cur_maxDegree;
 
-    printf("Make CSR...\n");
-    makeCSR(ret, 1);
-    ret.sortById(1);
     return ret;
 }
 
-void Graph::createE2attr() {
+CGraph CGraph::getE2() const {
+    CGraph ret = newCGraph(nVertices, nEdges * maxDegree); // worst case
 
-    out_srcs2 = new VertexIdx[nEdges2]();
-    out_dsts2 = new VertexIdx[nEdges2]();
-    in_srcs2 = new VertexIdx[nEdges2]();
-    in_dsts2 = new VertexIdx[nEdges2]();
-    verticesDegree2 = new VertexIdx[nVertices]();
-    std::fill(out_dsts2, out_dsts2 + nEdges2, 0);
-    std::fill(in_dsts2, in_dsts2 + nEdges2, 0);
-    std::fill(verticesDegree2, verticesDegree2 + nVertices, 0);
+    EdgeIdx current = 0;
+    int64_t cur_maxDegree = 0;
+    int64_t new_maxDegree = 0;
     
-    EdgeIdx current_out = 0;
-    EdgeIdx current_in = 0;
-    for (VertexIdx i = 0; i < nVertices; i++) {
-        for (const auto& wedge : (*adjVector2)[i]) {
-            verticesDegree2[i]++;
-            if (wedge <= i) {
-                in_dsts2[current_in] = wedge;
-                in_srcs2[current_in] = i;
-                current_in++;
+    ret.offsets[0] = 0;
+    for (VertexIdx start = 0; start < nVertices; start++) {
+        // vector<bool> check : index is VertexIdx, check whether the node was already visited for e2.
+        std::vector<bool> check(nVertices, false);
+
+        for (EdgeIdx idx = offsets[start]; idx < offsets[start + 1]; idx++) {
+            VertexIdx nbr = nbors[idx];
+            for (EdgeIdx idx2 = offsets[nbr]; idx2 < offsets[nbr + 1]; idx2++) {
+                VertexIdx final = nbors[idx2];
+                if (start != final && !check[final] && getEdgeBinary(start, final) == -1) {
+                    check[final] = true;
+                    ret.nbors[current++] = final;
+                }
             }
-            else{
-                out_dsts2[current_out] = wedge;
-                out_srcs2[current_out] = i;
-                current_out++;
-            }  
+        }
+        // if (start % 10000 == 0) {
+        //     printf("Completed Node: %lld / %lld\n", start, nVertices);
+        // }
+
+        ret.offsets[start + 1] = current;
+        new_maxDegree = ret.degree(start);
+        if (cur_maxDegree < new_maxDegree){
+            cur_maxDegree = new_maxDegree;
         }
     }
-    printf("Make CSR (2)...\n");
-    makeCSR(*this, 2);
-    sortById(2);
-}
 
-void Graph::sortById(int etype) const {
-
-    EdgeIdx* out;
-    EdgeIdx* in;
-    VertexIdx* out_dst;
-    VertexIdx* in_dst;
     
-    if (etype == 1){
-        out = out_offsets;
-        in = in_offsets;
-        out_dst = out_dsts;
-        in_dst = in_dsts;
-    }
-    else{
-        out = out_offsets2;
-        in  = in_offsets2;
-        out_dst = out_dsts2;
-        in_dst = in_dsts2;
-    }
-
-    for (VertexIdx i = 0; i < nVertices; i++) {
-        EdgeIdx out_start = out[i];
-        EdgeIdx out_end = out[i+1];
-        if (out_start < out_end) { 
-            std::sort(out_dst + out_start, out_dst + out_end);
-        }
-
-        EdgeIdx in_start = in[i];
-        EdgeIdx in_end = in[i+1];
-        if (in_start < in_end) { 
-            std::sort(in_dst + in_start, in_dst + in_end);
-        }
-    }
+    ret.nEdges = current;
+    ret.nbors = (VertexIdx*)realloc(ret.nbors, current * sizeof(VertexIdx));
+    ret.maxDegree = cur_maxDegree;
+    
+    return ret;
 }
 
-
-EdgeIdx Graph::getEdgeBinary(VertexIdx v1, VertexIdx v2, VertexIdx* found) const
+EdgeIdx CGraph::getEdgeBinary(VertexIdx v1, VertexIdx v2) const
 {
     if (v1 >= nVertices)
         return -1;
-    EdgeIdx bound = out_offsets[v1];
-    EdgeIdx low = out_offsets[v1];
-    EdgeIdx high = out_offsets[v1+1]-1;
+    EdgeIdx low = offsets[v1];
+    EdgeIdx high = offsets[v1+1]-1;
     EdgeIdx mid;
+
     while(low <= high)
     {
-        mid = (low+high)/2; 
-        if (out_dsts[mid] == v2){
-            found[mid-bound] = 1;
+        mid = (low+high)/2;
+        if (nbors[mid] == v2)
             return mid;
-        }
-        if (out_dsts[mid] > v2)
+        if (nbors[mid] > v2)
             high = mid-1;
         else
             low = mid+1;
@@ -248,19 +210,25 @@ void read_mtx(const std::string& filename, Graph& graph) {
     int64_t n, m;
     iss >> n >> n >> m;
     graph.nVertices = n;
-    graph.nEdges = m;
-    graph.verticesDegree = new VertexIdx[graph.nVertices]();
-    std::fill(graph.verticesDegree, graph.verticesDegree + graph.nVertices, 0);
+    graph.nEdges = 2*m;
 
     int64_t u, v;
-    graph.adjVector = new std::map<VertexIdx, std::vector<VertexIdx>>();
+    EdgeIdx iEdge = 0;
+
+    graph.srcs = new VertexIdx[graph.nEdges];
+    graph.dsts = new VertexIdx[graph.nEdges];
 
     while (file >> u >> v) {
         u--, v--;
-        (*graph.adjVector)[u].push_back(v);
-        (*graph.adjVector)[v].push_back(u);
-        graph.verticesDegree[u]++;
-        graph.verticesDegree[v]++;
+        graph.srcs[iEdge] = v;
+        graph.dsts[iEdge] = u;
+        ++iEdge;
+        
+
+        graph.srcs[iEdge] = u;
+        graph.dsts[iEdge] = v;
+        ++iEdge;
+
     }
     file.close();
 }

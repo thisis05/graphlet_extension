@@ -13,8 +13,8 @@ CXXFLAGS += -ffast-math -funroll-loops -fno-strict-aliasing \
 
 CXX = "$(LLVM_DIR)/bin/clang++"
 
-main.exe: main.cpp graph.cpp counter.cpp 
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o main.exe main.cpp graph.cpp counter.cpp
+main.exe: main.cpp graph.cpp 
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o main.exe main.cpp graph.cpp 
 
 clean:
 	@echo "Removing executables"
