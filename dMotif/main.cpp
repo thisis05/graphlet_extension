@@ -48,23 +48,29 @@ int main(int argc, char* argv[]) {
     printf("Execution time for get E2:  %.3f\n", seconds1);
  
     // 1. Count 3-size d-Motifs
-    double mcounts[40];
-    printf("Count d-Motifs\n");
+    double mcounts3[6];
+    printf("Count d-Motifs (3-size)\n");
     auto start_time2 = high_resolution_clock::now();
-    countAll(&cg, &dag, &cg_2, &dag_2, mcounts);
-    double tri3 =  mcounts[4] - 3*mcounts[5];
-    printf("Star1 : %.1f\n", mcounts[0] - 3*mcounts[2] - mcounts[3]);
-    printf("Star2 : %.1f\n", mcounts[1] - 2*mcounts[3] - 2*tri3);
-    printf("Tri1 : %.1f\n", mcounts[2]);
-    printf("Tri2 : %.1f\n", mcounts[3]);
-    printf("Tri3 : %.1f\n", tri3);
-    printf("Tri4 : %.1f\n", mcounts[5]);
-
+    countThree(&cg, &dag, &cg_2, &dag_2, mcounts3);
     auto end_time2 = high_resolution_clock::now();
     auto duration2 = duration_cast<milliseconds>(end_time2 - start_time2);
     double seconds2 = duration2.count() / 1000.0; // Convert milliseconds to seconds
-    printf("Execution time for Counting Motifs: %.3f\n", seconds2);
-    printf("Total Execution time: %.3f\n", seconds1 + seconds2);
+    printf("Execution time for Counting Motifs (3-size): %.3f\n", seconds2);
+    mEquation3(mcounts3);
+
+    // 1. Count 4-size d-Motifs
+    double mcounts4[40];
+    printf("Count d-Motifs (4-size)\n");
+    auto start_time3 = high_resolution_clock::now();
+    countFour(&cg, &dag, &cg_2, &dag_2, mcounts4);
+    auto end_time3 = high_resolution_clock::now();
+    auto duration3 = duration_cast<milliseconds>(end_time3 - start_time3);
+    double seconds3 = duration3.count() / 1000.0; // Convert milliseconds to seconds
+    printf("Execution time for Counting Motifs: %.3f\n", seconds3);
+    mEquation4(mcounts4);
+
+    printf("Total Execution time for 3-size: %.3f\n", seconds1 + seconds2);
+    printf("Total Execution time for 4-size: %.3f\n", seconds1 + seconds3);
 
     printf("# of Edge (1): %lld", cg.nEdges / 2);
     printf("\n# of Edge (2): %lld", cg_2.nEdges / 2);

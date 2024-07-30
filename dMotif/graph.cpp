@@ -69,6 +69,26 @@ bool compareDegree(Pair firstPair, Pair nextPair) {
     return firstPair.first < nextPair.first;
 }
 
+VertexIdx binarySearch(EdgeIdx* array, VertexIdx end, EdgeIdx val)
+{
+    VertexIdx low = 0;
+    VertexIdx high = end-1;
+    VertexIdx mid;
+
+    while (low <= high)
+    {
+        mid = (low+high)/2;
+        if (array[mid] == val)
+            return mid;
+        if (array[mid] > val)
+            high = mid-1;
+        if (array[mid] < val)
+            low = mid+1;
+    }
+    return -1;
+}
+
+
 CGraph CGraph::renameByDegreeOrder() const
 {
     CGraph ret = newCGraph(nVertices, nEdges);
@@ -191,6 +211,36 @@ EdgeIdx CGraph::getEdgeBinary(VertexIdx v1, VertexIdx v2) const
             low = mid+1;
     }
     return -1;
+}
+
+bool CGraph::isEdgeBinary(VertexIdx v1, VertexIdx v2) const
+{
+//     VertexIdx deg1 = offsets[v1+1] - offsets[v1];
+//     VertexIdx deg2 = offsets[v2+1] - offsets[v2];
+
+//     if(deg2 < deg1)
+//     {
+//         VertexIdx swp = v1;
+//         v1 = v2;
+//         v2 = swp;
+//     }
+//
+    EdgeIdx low = offsets[v1];
+    EdgeIdx high = offsets[v1+1]-1;
+    EdgeIdx mid;
+
+    while(low <= high)
+    {
+        mid = (low+high)/2;
+
+        if (nbors[mid] == v2)
+            return true;
+        if (nbors[mid] > v2)
+            high = mid-1;
+        else
+            low = mid+1;
+    }
+    return false;
 }
 
 

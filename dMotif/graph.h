@@ -36,6 +36,7 @@ struct CGraph
   CGraph getE2() const;
   EdgeIdx getEdgeBinary(VertexIdx v1, VertexIdx v2) const;
   EdgeIdx degree(VertexIdx v) const {return offsets[v + 1] - offsets[v]; }
+  bool isEdgeBinary(VertexIdx v1, VertexIdx v2) const;
 };
 
 CGraph makeCSR(Graph& graph);
@@ -47,5 +48,6 @@ struct Pair {
 };
 
 bool compareDegree(Pair firstPair, Pair nextPair);
+VertexIdx binarySearch(EdgeIdx* array, VertexIdx end, EdgeIdx val);
 void read_mtx(const std::string& filename, Graph& graph);
 
