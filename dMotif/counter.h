@@ -13,37 +13,10 @@ struct ThreeSizeInfo {
     Count tri2;
     Count tri3;
     Count tri4;
-    
-    Count *perVertex1;
-    Count *perEdge1;
-    Count *perVertex2;
-    Count *perEdge2_1;
-    Count *perEdge2_2;
-    Count *perVertex4;
-    Count *perEdge4;
 
     ThreeSizeInfo(VertexIdx nVertices, EdgeIdx nEdges, EdgeIdx nEdges2) 
-        : tri1(0), tri2(0), tri3(0), tri4(0) {
-        perVertex1 = new Count[nVertices+1]();
-        perEdge1 = new Count[nEdges2+1]();
-        
-        perVertex2 = new Count[nVertices+1]();
-        perEdge2_1 = new Count[nEdges+1]();
-        perEdge2_2 = new Count[nEdges2+1]();
-        
-        perVertex4 = new Count[nVertices+1]();
-        perEdge4 = new Count[nEdges+1]();
-    }
+        : tri1(0), tri2(0), tri3(0), tri4(0) {}
 
-    ~ThreeSizeInfo() {
-        delete[] perVertex1;
-        delete[] perEdge1;
-        delete[] perVertex2;
-        delete[] perEdge2_1;
-        delete[] perEdge2_2;
-        delete[] perVertex4;
-        delete[] perEdge4;
-    }
 };
 
 struct FourSizeInfo {

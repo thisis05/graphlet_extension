@@ -14,7 +14,7 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
     {
         ThreeSizeInfo local_ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
         
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(dynamic, 64)
         for (VertexIdx i = 0; i < gout->nVertices; ++i) {
             const EdgeIdx start = gout->offsets[i];
             const EdgeIdx end = gout->offsets[i+1];
@@ -30,12 +30,6 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
                     EdgeIdx loc_111 = gout->getEdgeBinary(end1, end2);
                     if (loc_111 != -1) {
                         local_ret.tri4++;
-                        local_ret.perVertex4[i]++;
-                        local_ret.perVertex4[end1]++;
-                        local_ret.perVertex4[end2]++;
-                        local_ret.perEdge4[j]++;
-                        local_ret.perEdge4[k]++;
-                        local_ret.perEdge4[loc_111]++;
                     }
                 }
                 
@@ -45,18 +39,12 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
                     
                     if (loc_122 != -1) {
                         local_ret.tri2++;
-                        local_ret.perVertex2[i]++;
-                        local_ret.perVertex2[end1]++;
-                        local_ret.perVertex2[n2]++;
-                        local_ret.perEdge2_1[j]++;
-                        local_ret.perEdge2_2[k]++;
-                        local_ret.perEdge2_2[loc_122]++;
                     }
                 }
             }
         }
 
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(dynamic, 64)
         for (VertexIdx i = 0; i < gout_2->nVertices; ++i) {
             const EdgeIdx start = gout_2->offsets[i];
             const EdgeIdx end = gout_2->offsets[i+1];
@@ -69,23 +57,10 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
                     EdgeIdx loc_222 = gout_2->getEdgeBinary(end1, end2);
                     if (loc_222 != -1) {
                         local_ret.tri1++;
-                        local_ret.perVertex1[i]++;
-                        local_ret.perVertex1[end1]++;
-                        local_ret.perVertex1[end2]++;
-                        local_ret.perEdge1[j]++;
-                        local_ret.perEdge1[k]++;
-                        local_ret.perEdge1[loc_222]++;
-
                     } else {
                         EdgeIdx loc_221 = gout->getEdgeBinary(end1, end2);
                         if (loc_221 != -1) {
                             local_ret.tri2++;
-                            local_ret.perVertex2[i]++;
-                            local_ret.perVertex2[end1]++;
-                            local_ret.perVertex2[end2]++;
-                            local_ret.perEdge2_2[j]++;
-                            local_ret.perEdge2_2[k]++;
-                            local_ret.perEdge2_1[loc_221]++;
                         }
                     }
                 }
@@ -97,22 +72,6 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
             ret.tri1 += local_ret.tri1;
             ret.tri2 += local_ret.tri2;
             ret.tri4 += local_ret.tri4;
-            
-            for (VertexIdx i = 0; i < gout->nVertices; ++i) {
-                ret.perVertex1[i] += local_ret.perVertex1[i];
-                ret.perVertex2[i] += local_ret.perVertex2[i];
-                ret.perVertex4[i] += local_ret.perVertex4[i];
-            }
-            
-            for (EdgeIdx j = 0; j < gout->nEdges; ++j) {
-                ret.perEdge2_1[j] += local_ret.perEdge2_1[j];
-                ret.perEdge4[j] += local_ret.perEdge4[j];
-            }
-            
-            for (EdgeIdx j = 0; j < gout_2->nEdges; ++j) {
-                ret.perEdge1[j] += local_ret.perEdge1[j];
-                ret.perEdge2_2[j] += local_ret.perEdge2_2[j];
-            }
         }
     }
 
@@ -128,7 +87,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gout_2) {
     {
         FourSizeInfo local_ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
         
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(dynamic, 64)
         for (VertexIdx i = 0; i < gout->nVertices; ++i) {
             const EdgeIdx start = gout->offsets[i];
             const EdgeIdx end = gout->offsets[i+1];
@@ -156,15 +115,30 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gout_2) {
                         count++;
                     }
                 }
-                for (Count k1 = 0; k1 < count; ++k1){
-                    VertexIdx e1 = tri4ends[k1];
-                    for (Count k2 = k1+1; k2 < count; ++k2){
-                        VertexIdx e2 = tri4ends[k2];
-                        EdgeIdx clique11 = gout->getEdgeBinary(e1, e2);
-                        if (clique11 != -1)
-                            local_ret.clique11++;
-                        else{
-                            local_ret.clique10++;
+                
+                for (VertexIdx posk = 0; posk < count; ++posk) // loop over all pairs of triangles formed by (i,j)
+                {
+                    VertexIdx k = tri4ends[posk]; // k is vertex as index posk in triends
+                    VertexIdx degk = gout->offsets[k+1] - gout->offsets[k]; // gettting degree of k in gout
+                    VertexIdx remaining = count-posk; // number of vertices that k needs to be checked with
+                    if (degk >= remaining){   
+                        // We will search all other vertices in triends in k's adj list
+                        for (VertexIdx posell = posk+1; posell < count; ++posell){
+                            VertexIdx ell = tri4ends[posell]; 
+                            if (gout->isEdgeBinary(k,ell)){ // (k,ell) is an end, thus (i,j,k,ell) form a 4-clique
+                               local_ret.clique11++;
+                            }
+                            else local_ret.clique10++;
+                        }
+                    }
+                    else{
+                        // We will search all vertices in k's adj list in the remaining portion of triends
+                        for (EdgeIdx posell = gout->offsets[k]; posell < gout->offsets[k+1]; posell++){
+                            VertexIdx ell = gout->nbors[posell];
+                            if (binarySearch(tri4ends+posk+1,count-posk-1,ell) != -1){
+                                local_ret.clique11++;
+                            }
+                            else local_ret.clique10++;
                         }
                     }
                 }
@@ -186,10 +160,10 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gout_2) {
             }
         }
 
-        #pragma omp for schedule(dynamic)
+        #pragma omp for schedule(dynamic, 64)
         for (VertexIdx i = 0; i < gout_2->nVertices; ++i) {
-            if(step % 100 == 0) printf("Progress : %lld / %lld\n", step, gout->nVertices);
-            step++;
+            //if(step % 100 == 0) printf("Progress : %lld / %lld\n", step, gout->nVertices);
+            //step++;
             const EdgeIdx start = gout_2->offsets[i];
             const EdgeIdx end = gout_2->offsets[i+1];
             

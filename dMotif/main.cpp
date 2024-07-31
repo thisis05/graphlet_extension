@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     printf("Execution time for Counting Motifs (3-size): %.3f\n", seconds2);
     mEquation3(mcounts3);
 
-    // 1. Count 4-size d-Motifs
+    // 2. Count 4-size d-Motifs
     double mcounts4[40];
     printf("Count d-Motifs (4-size)\n");
     auto start_time3 = high_resolution_clock::now();
