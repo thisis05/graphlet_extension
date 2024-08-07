@@ -28,10 +28,13 @@ struct CGraph
   EdgeIdx    nEdges;      //number of edges in the graph
   EdgeIdx   *offsets;     //vertex v's edges are [offset[v], offset[v + 1])
   VertexIdx *nbors;       //incoming or outgoing neighbors
+  VertexIdx *mapping;
+  VertexIdx *inverse;
   Count maxDegree;
   //std::unordered_map<long long, std::unordered_map<long long, long long>> adj_matrix;
   
   CGraph renameByDegreeOrder() const;
+  CGraph reMapping(VertexIdx *mapping, VertexIdx *inverse) const;
   void sortById() const;
   CGraph getE2() const;
   EdgeIdx getEdgeBinary(VertexIdx v1, VertexIdx v2) const;

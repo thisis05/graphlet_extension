@@ -147,16 +147,54 @@ CGraph CGraph::renameByDegreeOrder() const
     }
     //ret.adj_matrix = adjMat;
     ret.maxDegree = cur_maxDegree;
+    ret.mapping = mapping;
+    ret.inverse = inverse;
+    return ret;
+}
+
+CGraph CGraph::reMapping(VertexIdx *mapping, VertexIdx *inverse) const{
+
+    CGraph ret = newCGraph(nVertices, nEdges);
+
+    ret.offsets[0] = 0;
+    EdgeIdx current = 0;
+
+    int64_t cur_maxDegree = 0;
+    int64_t new_maxDegree = 0;
+
+    for (VertexIdx new_label=0; new_label < nVertices; new_label++)
+    {
+        VertexIdx old_label = inverse[new_label]; // corresponding old label for new vertices
+        for (EdgeIdx pos = offsets[old_label]; pos < offsets[old_label+1]; pos++) // loop over neighbors of old label
+        {
+            VertexIdx old_nbr = nbors[pos];
+            VertexIdx new_nbr = mapping[old_nbr]; //corresponding new neighbor
+            ret.nbors[current] = new_nbr; // insert new neighbor in nbors of output
+
+            // adjMat[new_label][new_nbr] = 1;
+            // adjMat[new_nbr][new_label] = 1;
+            current++;
+        }
+        ret.offsets[new_label+1] = current; // all neighbors of new_label have been added, so we set offset for new_label+1
+        new_maxDegree = ret.degree(new_label);
+        if (cur_maxDegree < new_maxDegree){
+            cur_maxDegree = new_maxDegree;
+        }
+    }
+    //ret.adj_matrix = adjMat;
+    ret.maxDegree = cur_maxDegree;
 
     return ret;
 }
 
 CGraph CGraph::getE2() const {
-    CGraph ret = newCGraph(nVertices, nEdges * maxDegree); // worst case
-
+    
+    CGraph ret = newCGraph(nVertices, nEdges * 200); // worst case
     EdgeIdx current = 0;
     int64_t cur_maxDegree = 0;
     int64_t new_maxDegree = 0;
+    
+    
     
     ret.offsets[0] = 0;
     for (VertexIdx start = 0; start < nVertices; start++) {

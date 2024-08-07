@@ -3,8 +3,52 @@
 #include <stdio.h>
 #include <omp.h>
 #include <vector>
+#include <stdexcept>
+#include <cstring>
+#include <windows.h>
+#include <psapi.h>
+#include <iostream>
 
 #define DEBUG_PRINT(fmt, ...) printf(fmt, __VA_ARGS__)
+
+
+
+void PrintMemoryUsage() {
+    // Get the current process handle
+    HANDLE hProcess = GetCurrentProcess();
+
+    // Structure to store memory information
+    PROCESS_MEMORY_COUNTERS pmc;
+
+    // Get the memory information for the current process
+    if (GetProcessMemoryInfo(hProcess, &pmc, sizeof(pmc))) {
+        std::cout << "Current Memory Usage: " << std::endl;
+        std::cout << "Working Set Size: " << pmc.WorkingSetSize / 1024 << " KB" << std::endl;
+        std::cout << "Peak Working Set Size: " << pmc.PeakWorkingSetSize / 1024 << " KB" << std::endl;
+        std::cout << "Pagefile Usage: " << pmc.PagefileUsage / 1024 << " KB" << std::endl;
+        std::cout << "Peak Pagefile Usage: " << pmc.PeakPagefileUsage / 1024 << " KB" << std::endl;
+
+        // Get total physical memory
+        MEMORYSTATUSEX memInfo;
+        memInfo.dwLength = sizeof(MEMORYSTATUSEX);
+        if (GlobalMemoryStatusEx(&memInfo)) {
+            DWORDLONG totalPhysicalMemory = memInfo.ullTotalPhys;
+            DWORDLONG usedPhysicalMemory = pmc.WorkingSetSize;
+            
+            std::cout << "Total Physical Memory: " << totalPhysicalMemory / 1024 << " KB" << std::endl;
+            std::cout << "Used Physical Memory by Process: " << usedPhysicalMemory / 1024 << " KB" << std::endl;
+            std::cout << "Percentage of Total Physical Memory Used by Process: " 
+                      << (double(usedPhysicalMemory) / double(totalPhysicalMemory)) * 100.0 << " %" << std::endl;
+        } else {
+            std::cerr << "Failed to get total physical memory info." << std::endl;
+        }
+    } else {
+        std::cerr << "Failed to get process memory info." << std::endl;
+    }
+
+    // Close the process handle
+    CloseHandle(hProcess);
+}
 
 ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
 
@@ -24,6 +68,9 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
             for (EdgeIdx j = start; j < end; ++j) {
                 const VertexIdx end1 = gout->nbors[j];
                 
+                // Tri4 : i < j < k (1, 1, 1)
+                //        i->j : 1, i->k : 1, j->k : 1
+                
                 for (EdgeIdx k = j+1; k < end; ++k) {
                     const VertexIdx end2 = gout->nbors[k];
                     
@@ -32,39 +79,43 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
                         local_ret.tri4++;
                     }
                 }
-                
+
+                // Tri2 : i < j < k 
+                //    (1) i->j : 2, i->k : 1, j->k : 2
+                //    (2) i->j : 1, i->k : 2, j->k : 2  
+
                 for (EdgeIdx k = start_2; k < end_2; ++k) {
-                    const VertexIdx n2 = gout_2->nbors[k];
-                    EdgeIdx loc_122 = (end1 > n2) ? gout_2->getEdgeBinary(n2, end1) : gout_2->getEdgeBinary(end1, n2);
-                    
-                    if (loc_122 != -1) {
+                    const VertexIdx end2 = gout_2->nbors[k];
+                    EdgeIdx loc221 = end1 > end2 ? gout_2->getEdgeBinary(end2, end1) : gout_2->getEdgeBinary(end1, end2);
+                    if (loc221 != -1) {
                         local_ret.tri2++;
                     }
-                }
+                }                 
             }
-        }
 
-        #pragma omp for schedule(dynamic, 64)
-        for (VertexIdx i = 0; i < gout_2->nVertices; ++i) {
-            const EdgeIdx start = gout_2->offsets[i];
-            const EdgeIdx end = gout_2->offsets[i+1];
-            
-            for (EdgeIdx j = start; j < end; ++j) {
+            for (EdgeIdx j = start_2; j < end_2; ++j) {
                 const VertexIdx end1 = gout_2->nbors[j];
-
-                for (EdgeIdx k = j+1; k < end; ++k) {
+                for (EdgeIdx k = j+1; k < end_2; ++k) {
                     const VertexIdx end2 = gout_2->nbors[k];
+
+                    // Tri4 : i < j < k 
+                    //    (3) i->j : 2, i->k : 2, j->k : 2
+
                     EdgeIdx loc_222 = gout_2->getEdgeBinary(end1, end2);
                     if (loc_222 != -1) {
                         local_ret.tri1++;
                     } else {
+                        
+                        // Tri2 : i < j < k 
+                        //    (3) i->j : 2, i->k : 2, j->k : 1
+
                         EdgeIdx loc_221 = gout->getEdgeBinary(end1, end2);
                         if (loc_221 != -1) {
                             local_ret.tri2++;
                         }
                     }
                 }
-            }
+            }       
         }
 
         #pragma omp critical
@@ -78,11 +129,11 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
     return ret;
 }
 
-FourSizeInfo get4size(CGraph *gout, CGraph *gout_2) {
+
+FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) {
 
     FourSizeInfo ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
-
-    VertexIdx step = 0;
+    Count count = 0;
     #pragma omp parallel
     {
         FourSizeInfo local_ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
@@ -93,172 +144,211 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gout_2) {
             const EdgeIdx end = gout->offsets[i+1];
             const EdgeIdx start_2 = gout_2->offsets[i];
             const EdgeIdx end_2 = gout_2->offsets[i+1];
+
+            TriangleInfo local_tri1(gout_2->degree(i), gout_2->degree(i)-1);
+            TriangleInfo local_tri2_1(gout->degree(i), gout_2->degree(i));
+            TriangleInfo local_tri2_2_1(gout_2->degree(i), gout->degree(i));
+            TriangleInfo local_tri2_2_2(gout_2->degree(i), gout_2->degree(i)-1);
+            TriangleInfo local_tri3_1_1(gout->degree(i), gout->degree(i)-1);
+            TriangleInfo local_tri3_1_2(gout->degree(i), gout_2->degree(i));
+            TriangleInfo local_tri3_2(gout_2->degree(i), gout->degree(i));
+            TriangleInfo local_tri4(gout->degree(i), gout->degree(i)-1);
             
-            for (EdgeIdx j = start; j < end; ++j) {
-                const VertexIdx end1 = gout->nbors[j];
-                
-                Count count = 0;
-                Count *tri4ends = new Count[end-start]();
-                for (EdgeIdx k = j+1; k < end; ++k) {
-                    const VertexIdx end2 = gout->nbors[k];
-                    
-                    EdgeIdx loc_111 = gout->getEdgeBinary(end1, end2);
-                    if (loc_111 != -1) {
-                        local_ret.tri4++;
-                        local_ret.perVertex4[i]++;
-                        local_ret.perVertex4[end1]++;
-                        local_ret.perVertex4[end2]++;
-                        local_ret.perEdge4[j]++;
-                        local_ret.perEdge4[k]++;
-                        local_ret.perEdge4[loc_111]++;
-                        tri4ends[count] = end2;
-                        count++;
-                    }
-                }
-                
-                for (VertexIdx posk = 0; posk < count; ++posk) // loop over all pairs of triangles formed by (i,j)
-                {
-                    VertexIdx k = tri4ends[posk]; // k is vertex as index posk in triends
-                    VertexIdx degk = gout->offsets[k+1] - gout->offsets[k]; // gettting degree of k in gout
-                    VertexIdx remaining = count-posk; // number of vertices that k needs to be checked with
-                    if (degk >= remaining){   
-                        // We will search all other vertices in triends in k's adj list
-                        for (VertexIdx posell = posk+1; posell < count; ++posell){
-                            VertexIdx ell = tri4ends[posell]; 
-                            if (gout->isEdgeBinary(k,ell)){ // (k,ell) is an end, thus (i,j,k,ell) form a 4-clique
-                               local_ret.clique11++;
-                            }
-                            else local_ret.clique10++;
+            for (EdgeIdx e_j = start; e_j < end; ++e_j) {
+                const VertexIdx j = gout->nbors[e_j];
+                EdgeIdx idx3_1_1 = local_tri3_1_1.idx;
+                EdgeIdx idx3_1_2 = local_tri3_1_2.idx;
+                EdgeIdx idx4 = local_tri4.idx;
+                EdgeIdx idx2_1 = local_tri2_1.idx;
+                Count isIncluded3_1_1 = 0;
+                Count isIncluded3_1_2 = 0;
+                Count isIncluded4 = 0;
+                Count isIncluded2_1 = 0;
+
+                for (EdgeIdx e_k = e_j+1; e_k < end; ++e_k) {
+                    const VertexIdx k = gout->nbors[e_k];
+                    EdgeIdx loc112 = gout_2->getEdgeBinary(j, k);
+                    if (loc112 != -1) {
+                        local_ret.tri3++;
+                        if (isIncluded3_1_1 == 0){
+                            local_tri3_1_1.tri_idx[idx3_1_1] = e_j;
+                            isIncluded3_1_1 = 1;
                         }
+                        //printf("Debug: i=%lld, idx3_1_1=%lld, local_tri3_1_1 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx3_1_1, local_tri3_1_1.tri_k_counts[idx3_1_1], local_tri3_1_1.maxEdges, local_tri3_1_1.maxTri);
+                        local_tri3_1_1.tri_k[idx3_1_1][local_tri3_1_1.tri_k_counts[idx3_1_1]] = k;
+                        local_tri3_1_1.tri_k_counts[idx3_1_1]++;
                     }
                     else{
-                        // We will search all vertices in k's adj list in the remaining portion of triends
-                        for (EdgeIdx posell = gout->offsets[k]; posell < gout->offsets[k+1]; posell++){
-                            VertexIdx ell = gout->nbors[posell];
-                            if (binarySearch(tri4ends+posk+1,count-posk-1,ell) != -1){
-                                local_ret.clique11++;
+                        EdgeIdx loc111 = gout->getEdgeBinary(j, k);
+                        if (loc111 != -1) {
+                            local_ret.tri4++;
+                            if (isIncluded4 == 0){
+                                local_tri4.tri_idx[idx4] = e_j;
+                                isIncluded4 = 1;
                             }
-                            else local_ret.clique10++;
+                            //printf("Debug: i=%lld, idx4=%lld, local_tri4 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx4, local_tri4.tri_k_counts[idx4], local_tri4.maxEdges, local_tri4.maxTri);
+                            local_tri4.tri_k[idx4][local_tri4.tri_k_counts[idx4]] = k;
+                            local_tri4.tri_k_counts[idx4]++;
                         }
                     }
                 }
-                
-                for (EdgeIdx k = start_2; k < end_2; ++k) {
-                    const VertexIdx n2 = gout_2->nbors[k];
-                    EdgeIdx loc_122 = (end1 > n2) ? gout_2->getEdgeBinary(n2, end1) : gout_2->getEdgeBinary(end1, n2);
-                    
-                    if (loc_122 != -1) {
+
+                for (EdgeIdx e_k = start_2; e_k < end_2; ++e_k) {
+                    const VertexIdx k = gout_2->nbors[e_k];
+                    if (k <= j) {continue;}
+                    EdgeIdx loc122 = gout_2->getEdgeBinary(j, k);
+                    if (loc122 != -1) {
                         local_ret.tri2++;
-                        local_ret.perVertex2[i]++;
-                        local_ret.perVertex2[end1]++;
-                        local_ret.perVertex2[n2]++;
-                        local_ret.perEdge2_1[j]++;
-                        local_ret.perEdge2_2[k]++;
-                        local_ret.perEdge2_2[loc_122]++;
+                        if (isIncluded2_1 == 0){
+                            local_tri2_1.tri_idx[idx2_1] = e_j;
+                            isIncluded2_1 = 1;
+                        }
+                        //printf("Debug: i=%lld, idx2_1=%lld, local_tri2_1 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx2_1, local_tri2_1.tri_k_counts[idx2_1], local_tri2_1.maxEdges, local_tri2_1.maxTri);
+                        local_tri2_1.tri_k[idx2_1][local_tri2_1.tri_k_counts[idx2_1]] = k;
+                        local_tri2_1.tri_k_counts[idx2_1]++;
+                    }
+                    else{
+                        EdgeIdx loc121 = gout->getEdgeBinary(j, k);
+                        if (loc121 != -1) {
+                            local_ret.tri3++;
+                            if (isIncluded3_1_2 == 0){
+                                local_tri3_1_2.tri_idx[idx3_1_2] = e_j;
+                                isIncluded3_1_2 = 1;
+                            }
+                            //printf("Debug: i=%lld, idx3_1_2=%lld, local_tri3_1_2 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx3_1_2, local_tri3_1_2.tri_k_counts[idx3_1_2], local_tri3_1_2.maxEdges, local_tri3_1_2.maxTri);
+                            local_tri3_1_2.tri_k[idx3_1_2][local_tri3_1_2.tri_k_counts[idx3_1_2]] = k;
+                            local_tri3_1_2.tri_k_counts[idx3_1_2]++;
+                        }
                     }
                 }
+
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri2_1.tri_k_counts[idx2_1]; ++k1_idx){
+                    VertexIdx k1 = local_tri2_1.tri_k[idx2_1][k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri2_1.tri_k_counts[idx2_1]; ++k2_idx){
+                        VertexIdx k2 = local_tri2_1.tri_k[idx2_1][k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique2++;}
+                    }
+                }
+
+                if (isIncluded3_1_1 == 1){local_tri3_1_1.idx++;}
+                if (isIncluded3_1_2 == 1){local_tri3_1_2.idx++;}
+                if (isIncluded4 == 1){local_tri4.idx++;}
+                if (isIncluded2_1 == 1){local_tri2_1.idx++;}                
             }
-        }
-
-        #pragma omp for schedule(dynamic, 64)
-        for (VertexIdx i = 0; i < gout_2->nVertices; ++i) {
-            //if(step % 100 == 0) printf("Progress : %lld / %lld\n", step, gout->nVertices);
-            //step++;
-            const EdgeIdx start = gout_2->offsets[i];
-            const EdgeIdx end = gout_2->offsets[i+1];
             
-            for (EdgeIdx j = start; j < end; ++j) {
-                const VertexIdx end1 = gout_2->nbors[j];
-                
-                Count count = 0;
-                Count *tri1ends = new Count[end-start]();
 
-                for (EdgeIdx k = j+1; k < end; ++k) {
-                    const VertexIdx end2 = gout_2->nbors[k];
-                    EdgeIdx loc_222 = gout_2->getEdgeBinary(end1, end2);
+            for (EdgeIdx e_j = start_2; e_j < end_2; ++e_j) {
+                const VertexIdx j = gout_2->nbors[e_j];
+                EdgeIdx idx3_2 = local_tri3_2.idx;
+                EdgeIdx idx1 = local_tri1.idx;
+                EdgeIdx idx2_2_1 = local_tri2_2_1.idx;
+                EdgeIdx idx2_2_2 = local_tri2_2_2.idx;
+                Count isIncluded2_2_1 = 0;
+                Count isIncluded2_2_2 = 0;
+                Count isIncluded1 = 0;
+                Count isIncluded3_2 = 0;
+
+                for (EdgeIdx e_k = e_j+1; e_k < end_2; ++e_k) {
+                    const VertexIdx k = gout_2->nbors[e_k];
+                    EdgeIdx loc_222 = gout_2->getEdgeBinary(j, k);
                     if (loc_222 != -1) {
                         local_ret.tri1++;
-                        local_ret.perVertex1[i]++;
-                        local_ret.perVertex1[end1]++;
-                        local_ret.perVertex1[end2]++;
-                        local_ret.perEdge1[j]++;
-                        local_ret.perEdge1[k]++;
-                        local_ret.perEdge1[loc_222]++;
-                        tri1ends[count] = end2;
-                        count++;
-
-                    } else {
-                        EdgeIdx loc_221 = gout->getEdgeBinary(end1, end2);
-                        if (loc_221 != -1) {
+                        if (isIncluded1 == 0){
+                            local_tri1.tri_idx[idx1] = e_j;
+                            isIncluded1 = 1;
+                        }
+                        local_tri1.tri_k[idx1][local_tri1.tri_k_counts[idx1]] = k;
+                        local_tri1.tri_k_counts[idx1]++;
+                    }
+                    else{
+                        EdgeIdx loc221 = gout->getEdgeBinary(j, k);
+                        if (loc221 != -1) {
                             local_ret.tri2++;
-                            local_ret.perVertex2[i]++;
-                            local_ret.perVertex2[end1]++;
-                            local_ret.perVertex2[end2]++;
-                            local_ret.perEdge2_2[j]++;
-                            local_ret.perEdge2_2[k]++;
-                            local_ret.perEdge2_1[loc_221]++;
+                            if (isIncluded2_2_2 == 0){
+                                local_tri2_2_2.tri_idx[idx2_2_2] = e_j;
+                                isIncluded2_2_2 = 1;
+                            }
+                            local_tri2_2_2.tri_k[idx2_2_2][local_tri2_2_2.tri_k_counts[idx2_2_2]] = k;
+                            local_tri2_2_2.tri_k_counts[idx2_2_2]++;
                         }
                     }
                 }
-                for (Count k1 = 0; k1 < count; ++k1){
-                    VertexIdx e1 = tri1ends[k1];
-                    for (Count k2 = k1+1; k2 < count; ++k2){
-                        VertexIdx e2 = tri1ends[k2];
-                        EdgeIdx clique1 = gout_2->getEdgeBinary(e1, e2);
-                        if (clique1 != -1)
-                            local_ret.clique1++;
+
+                for (EdgeIdx e_k = start; e_k < end; ++e_k) {
+                    const VertexIdx k = gout->nbors[e_k];
+                    if (k <= j) {continue;}
+                    EdgeIdx loc212 = gout_2->getEdgeBinary(j, k);
+                    if (loc212 != -1) {
+                        local_ret.tri2++;
+                        if (isIncluded2_2_1 == 0){
+                            local_tri2_2_1.tri_idx[idx2_2_1] = e_j;
+                            isIncluded2_2_1 = 1;
+                        }
+                        //printf("Debug: i=%lld, idx2_2_1=%lld, local_tri2_2_1 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx2_2_1, local_tri2_2_1.tri_k_counts[idx2_2_1], local_tri2_2_1.maxEdges, local_tri2_2_1.maxTri);
+                        local_tri2_2_1.tri_k[idx2_2_1][local_tri2_2_1.tri_k_counts[idx2_2_1]] = k;
+                        local_tri2_2_1.tri_k_counts[idx2_2_1]++;
+                    }
+                    else{
+                        EdgeIdx loc211 = gout->getEdgeBinary(j, k);
+                        if (loc211 != -1) {
+                            local_ret.tri3++;
+                            if (isIncluded3_2 == 0){
+                                local_tri3_2.tri_idx[idx3_2] = e_j;
+                                isIncluded3_2 = 1;
+                            }
+                            local_tri3_2.tri_k[idx3_2][local_tri3_2.tri_k_counts[idx3_2]] = k;
+                            local_tri3_2.tri_k_counts[idx3_2]++;
+                        }
+                    }
+                }
+                //d1-1
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri1.tri_k_counts[idx1]; ++k1_idx){
+                    VertexIdx k1 = local_tri1.tri_k[idx1][k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri1.tri_k_counts[idx1]; ++k2_idx){
+                        VertexIdx k2 = local_tri1.tri_k[idx1][k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique1++;}
                         else{
-                            EdgeIdx clique2 = gout->getEdgeBinary(e1, e2);
-                            if (clique2 != -1)
-                                local_ret.clique2++;
-                            else 
-                                local_ret.chord1++;
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique2++;}
                         }
                     }
-                }
-            }
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_1.tri_k_counts[idx2_2_1]; ++k2_idx){
+                        VertexIdx k2 = local_tri2_2_1.tri_k[idx2_2_1][k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique2++;}
+                    }
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_2.tri_k_counts[idx2_2_2]; ++k2_idx){
+                        VertexIdx k2 = local_tri2_2_2.tri_k[idx2_2_2][k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique2++;}
+                    }
+                } 
+                
+                if (isIncluded1 == 1){local_tri1.idx++;}
+                if (isIncluded3_2 == 1){local_tri3_2.idx++;}
+                if (isIncluded2_2_1 == 1){local_tri2_2_1.idx++;}
+                if (isIncluded2_2_2 == 1){local_tri2_2_2.idx++;}         
+            }      
         }
+        
 
         #pragma omp critical
         {
             ret.tri1 += local_ret.tri1;
             ret.tri2 += local_ret.tri2;
+            ret.tri3 += local_ret.tri3;
             ret.tri4 += local_ret.tri4;
             ret.clique1 += local_ret.clique1;
             ret.clique2 += local_ret.clique2;
-            ret.clique3 += local_ret.clique3;
-            ret.clique4 += local_ret.clique4;
-            ret.clique5 += local_ret.clique5;
-            ret.clique6 += local_ret.clique6;
-            ret.clique7 += local_ret.clique7;
-            ret.clique8 += local_ret.clique8;
-            ret.clique9 += local_ret.clique9;
-            ret.clique10 += local_ret.clique10;
-            ret.clique11 += local_ret.clique11;
-            ret.chord1 += local_ret.chord1;
-
-            
-            
-            // for (VertexIdx i = 0; i < gout->nVertices; ++i) {
-            //     ret.perVertex1[i] += local_ret.perVertex1[i];
-            //     ret.perVertex2[i] += local_ret.perVertex2[i];
-            //     ret.perVertex4[i] += local_ret.perVertex4[i];
-            // }
-            
-            // for (EdgeIdx j = 0; j < gout->nEdges; ++j) {
-            //     ret.perEdge2_1[j] += local_ret.perEdge2_1[j];
-            //     ret.perEdge4[j] += local_ret.perEdge4[j];
-            // }
-            
-            // for (EdgeIdx j = 0; j < gout_2->nEdges; ++j) {
-            //     ret.perEdge1[j] += local_ret.perEdge1[j];
-            //     ret.perEdge2_2[j] += local_ret.perEdge2_2[j];
-            // }
         }
-    }
-    return ret;
-}
 
+    }
+
+    return ret;
+
+}
 
 void countThree(CGraph *cg, CDAG *dag, CGraph *cg_2, CDAG *dag_2, double (&mcounts)[6]){
 
@@ -301,18 +391,15 @@ void countFour(CGraph *cg, CDAG *dag, CGraph *cg_2, CDAG *dag_2, double (&mcount
 
     mcounts[0] = w1;
     mcounts[1] = w2;
-    mcounts[4] = t3;
-    FourSizeInfo motifcounts = get4size(&(dag->outlist), &(dag_2->outlist));
+    
+    FourSizeInfo motifcounts = get4size(&(dag->outlist), &(dag->inlist), &(dag_2->outlist), &(dag_2->inlist));
     mcounts[2] = motifcounts.tri1;
     mcounts[3] = motifcounts.tri2;
+    mcounts[4] = motifcounts.tri3;
     mcounts[5] = motifcounts.tri4;
-    
     
     mcounts[6] = motifcounts.clique1;
     mcounts[7] = motifcounts.clique2;
-    mcounts[15] = motifcounts.clique10;
-    mcounts[16] = motifcounts.clique11;
-    mcounts[17] = motifcounts.chord1;
 }
 
 void mEquation3(double (&mcounts)[6]){
@@ -326,16 +413,10 @@ void mEquation3(double (&mcounts)[6]){
 }
 
 void mEquation4(double (&mcounts)[40]){
-    double tri3 =  mcounts[4] - 3*mcounts[5];
-    printf("Star1 : %.1f\n", mcounts[0] - 3*mcounts[2] - mcounts[3]);
-    printf("Star2 : %.1f\n", mcounts[1] - 2*mcounts[3] - 2*tri3);
     printf("Tri1 : %.1f\n", mcounts[2]);
     printf("Tri2 : %.1f\n", mcounts[3]);
-    printf("Tri3 : %.1f\n", tri3);
+    printf("Tri3 : %.1f\n", mcounts[4]);
     printf("Tri4 : %.1f\n", mcounts[5]);
     printf("d1-1 : %.1f\n", mcounts[6]);
     printf("d1-2 : %.1f\n", mcounts[7]);
-    printf("d1-10 : %.1f\n", mcounts[15]);
-    printf("d1-11 : %.1f\n", mcounts[16]);
-    printf("d2-1 : %.1f\n", mcounts[17]);
 }

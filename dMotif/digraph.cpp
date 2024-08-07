@@ -12,7 +12,8 @@ CDAG degreeOrdered(CGraph *g)
     VertexIdx dest;
     VertexIdx degi;
     VertexIdx degdest;
-
+    Count out_maxdegree = 0;
+    Count in_maxdegree = 0;
     outdag.offsets[0] = 0;
     indag.offsets[0] = 0;
     for (VertexIdx i=0; i < g->nVertices; ++i)   // Looping over all vertices in g
@@ -43,7 +44,15 @@ CDAG degreeOrdered(CGraph *g)
         }
         outdag.offsets[i+1] = outcur;         // We have finished all edges incident to i, so we can update offsets in DAGs.
         indag.offsets[i+1] = incur;
+
+        Count cur_outdegree = outdag.offsets[i+1]- outdag.offsets[i];
+        if (out_maxdegree < cur_outdegree){out_maxdegree = cur_outdegree;}
+        Count cur_indegree = indag.offsets[i+1]- indag.offsets[i];
+        if (in_maxdegree < cur_indegree){in_maxdegree = cur_indegree;}
     }
+
+    outdag.maxDegree = out_maxdegree;
+    indag.maxDegree = in_maxdegree;
 
     for (VertexIdx i=0; i < g->nVertices;++i)  // Loops over vertices
         std::sort(outdag.nbors+outdag.offsets[i], outdag.nbors+outdag.offsets[i+1], DegreeComp(g)); // In outdag, sort all neighbors of i according to their degree. Note that DegreeComp gives the desired comparator.
@@ -64,7 +73,8 @@ CDAG degreeOrdered2(CGraph *g, CGraph* g1)
     VertexIdx dest;
     VertexIdx degi;
     VertexIdx degdest;
-
+    Count out_maxdegree = 0;
+    Count in_maxdegree = 0;
     outdag.offsets[0] = 0;
     indag.offsets[0] = 0;
     for (VertexIdx i=0; i < g->nVertices; ++i)   // Looping over all vertices in g
@@ -95,7 +105,15 @@ CDAG degreeOrdered2(CGraph *g, CGraph* g1)
         }
         outdag.offsets[i+1] = outcur;         // We have finished all edges incident to i, so we can update offsets in DAGs.
         indag.offsets[i+1] = incur;
+
+        Count cur_outdegree = outdag.offsets[i+1]- outdag.offsets[i];
+        if (out_maxdegree < cur_outdegree){out_maxdegree = cur_outdegree;}
+        Count cur_indegree = indag.offsets[i+1]- indag.offsets[i];
+        if (in_maxdegree < cur_indegree){in_maxdegree = cur_indegree;}
     }
+
+    outdag.maxDegree = out_maxdegree;
+    indag.maxDegree = in_maxdegree;
 
     for (VertexIdx i=0; i < g->nVertices;++i)  // Loops over vertices
         std::sort(outdag.nbors+outdag.offsets[i], outdag.nbors+outdag.offsets[i+1], DegreeComp(g1)); // In outdag, sort all neighbors of i according to their degree. Note that DegreeComp gives the desired comparator.
