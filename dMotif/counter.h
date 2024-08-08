@@ -46,12 +46,12 @@ struct FourSizeInfo {
     Count tri3;
     Count tri4;
     Count clique1, clique2, clique3, clique4, clique5, clique6, clique7, clique8, clique9, clique10, clique11;
-    Count chord1, chord2, chord3, chord4, chord5, chord6, chord7, chord8; 
+    Count chord1, chord2, chord3, chord4, chord5_1, chord5_2, chord6, chord7, chord8; 
 
     FourSizeInfo(VertexIdx nVertices, EdgeIdx nEdges, EdgeIdx nEdges2) 
         : star1(0), star2(0), tri1(0), tri2(0), tri3(0), tri4(0),
         clique1(0), clique2(0), clique3(0), clique4(0), clique5(0), clique6(0), clique7(0), clique8(0), clique9(0), clique10(0), clique11(0),
-        chord1(0), chord2(0), chord3(0), chord4(0), chord5(0), chord6(0), chord7(0), chord8(0){
+        chord1(0), chord2(0), chord3(0), chord4(0), chord5_1(0), chord5_2(0), chord6(0), chord7(0), chord8(0){
         
         n = nVertices;
         e1 = nEdges;

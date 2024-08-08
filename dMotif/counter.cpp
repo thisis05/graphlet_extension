@@ -133,7 +133,6 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
 FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) {
 
     FourSizeInfo ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
-    Count count = 0;
     #pragma omp parallel
     {
         FourSizeInfo local_ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
@@ -145,10 +144,15 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             const EdgeIdx start_2 = gout_2->offsets[i];
             const EdgeIdx end_2 = gout_2->offsets[i+1];
 
+            VertexIdx *local_star1_outout = new VertexIdx[gout->nVertices]();
+            VertexIdx *local_star1_outin = new VertexIdx[gout->nVertices]();
+            VertexIdx *local_star2_outout = new VertexIdx[gout->nVertices]();
+            VertexIdx *local_star2_outin = new VertexIdx[gout->nVertices]();
             
             for (EdgeIdx e_j = start; e_j < end; ++e_j) {
                 const VertexIdx j = gout->nbors[e_j];
                 
+
                 TriangleInfo local_tri2_1(gout_2->degree(i));
                 TriangleInfo local_tri3_1_1(gout->degree(i)-1);
                 TriangleInfo local_tri3_1_2(gout_2->degree(i));
@@ -201,32 +205,23 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     // Tri4 - Tri4
                     for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri4.count; ++k2_idx){
                         VertexIdx k2 = local_tri4.triend[k2_idx];
-                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
-                        if(loc2 != -1){local_ret.clique10++;}
-                        else{
-                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
-                            if(loc1 != -1) {local_ret.clique11++;}
-                        }
+                        EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                        if(loc1 != -1){local_ret.clique11++;}
+                        else{local_ret.clique10++;}
                     }
                     // Tri4 - Tri3_1_1
                     for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_1.count; ++k2_idx){
                         VertexIdx k2 = local_tri3_1_1.triend[k2_idx];
-                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
-                        if(loc2 != -1){local_ret.clique9++;}
-                        else{
-                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
-                            if(loc1 != -1) {local_ret.clique10++;}
-                        }
+                        EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                        if(loc1 != -1){local_ret.clique10++;}
+                        else{local_ret.clique9++;}
                     }
                     //Tri4 - Tri3_1_2
                     for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_2.count; ++k2_idx){
                         VertexIdx k2 = local_tri3_1_2.triend[k2_idx];
-                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
-                        if(loc2 != -1){local_ret.clique9++;}
-                        else{
-                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
-                            if(loc1 != -1) {local_ret.clique10++;}
-                        }
+                        EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                        if(loc1 != -1) {local_ret.clique10++;}
+                        else{local_ret.clique9++;}
                     }
                     //Tri4 - Tri2_1
                     for (VertexIdx k2_idx = 0; k2_idx < local_tri2_1.count; ++k2_idx){
@@ -236,6 +231,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique9++;}
+                            else{local_ret.chord7++;}
                         }
                     }
                 }
@@ -250,6 +246,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
                             if(loc1 != -1) {local_ret.clique3++;}
+                            else{local_ret.chord2++;}
                         }
                     }
                     // Tri2_1 - Tri3_1_1
@@ -260,6 +257,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique5++;}
+                            else{local_ret.chord5_2++;}
                         }
                     }
                     //Tri2_1 - Tri3_1_2
@@ -270,6 +268,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique5++;}
+                            else{local_ret.chord5_2++;}
                         }
                     }
                 }
@@ -279,12 +278,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     VertexIdx k1 = local_tri3_1_1.triend[k1_idx];
                     for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri3_1_1.count; ++k2_idx){
                         VertexIdx k2 = local_tri3_1_1.triend[k2_idx];
-                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
-                        if(loc2 != -1){local_ret.clique6++;}
-                        else{
-                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
-                            if(loc1 != -1) {local_ret.clique9++;}
-                        }
+                        EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                        if(loc1 != -1) {local_ret.clique9++;}
+                        else{local_ret.clique6++;}
                     }
                     // Tri3_1_1 - Tri3_1_2
                     for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_2.count; ++k2_idx){
@@ -294,6 +290,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique8++;}
+                            else{local_ret.chord8++;}
                         }
                     }
                 }
@@ -303,12 +300,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     VertexIdx k1 = local_tri3_1_2.triend[k1_idx];
                     for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri3_1_2.count; ++k2_idx){
                         VertexIdx k2 = local_tri3_1_2.triend[k2_idx];
-                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
-                        if(loc2 != -1){local_ret.clique6++;}
-                        else{
-                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
-                            if(loc1 != -1) {local_ret.clique9++;}
-                        }
+                        EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                        if(loc1 != -1) {local_ret.clique9++;}
+                        else{local_ret.clique6++;}
                     }
                 }           
             }
@@ -326,6 +320,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     const VertexIdx k = gout_2->nbors[e_k];
                     EdgeIdx loc_222 = gout_2->getEdgeBinary(j, k);
                     if (loc_222 != -1) {
+                        local_ret.tri1++;
                         local_tri1.triend[local_tri1.count]= k;
                         local_tri1.count++;
                     }
@@ -359,6 +354,16 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     }
                 }
 
+                // get Cycle
+                // for (EdgeIdx e_k = gout_2->offsets[j]; e_k < gout_2->offsets[j+1]; ++e_k) {
+                //     const VertexIdx k = gout_2->nbors[e_k];
+                //     local_star1_outout[k]++;
+                // }
+                // for (EdgeIdx e_k = gin_2->offsets[j]; e_k < gin_2->offsets[j+1]; ++e_k) {
+                //     const VertexIdx k = gin_2->nbors[e_k];
+                //     local_star1_outin[k]++;
+                // }
+
                 // 1. Tri1-based
                 for (VertexIdx k1_idx = 0; k1_idx < local_tri1.count; ++k1_idx){
                     VertexIdx k1 = local_tri1.triend[k1_idx];
@@ -369,6 +374,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
                             if(loc1 != -1) {local_ret.clique2++;}
+                            else{local_ret.chord1++;}
                         }
                     }
                     // Tri1 - Tri2_2_1
@@ -379,6 +385,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique4++;}
+                            else{local_ret.chord3++;}
                         }
                     }
                     // Tri1 - Tri2_2_2
@@ -389,6 +396,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique4++;}
+                            else{local_ret.chord3++;}
                         }
                     }
                     // Tri1 - Tri3_2
@@ -399,6 +407,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique6++;}
+                            else{local_ret.chord5_1++;}
                         }
                     }
                 } 
@@ -408,12 +417,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     VertexIdx k1 = local_tri2_2_1.triend[k1_idx];
                     for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri2_2_1.count; ++k2_idx){
                         VertexIdx k2 = local_tri2_2_1.triend[k2_idx];
-                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
-                        if(loc2 != -1){local_ret.clique4++;}
-                        else{
-                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
-                            if(loc1 != -1) {local_ret.clique7++;}
-                        }
+                        EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                        if(loc1 != -1) {local_ret.clique7++;}
+                        else{local_ret.clique4++;}
                     }
                     // Tri2_2_1 - Tri2_2_2
                     for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_2.count; ++k2_idx){
@@ -423,17 +429,15 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         else{
                             EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
                             if(loc1 != -1) {local_ret.clique5++;}
+                            else{local_ret.chord4++;}
                         }
                     }
                     // Tri2_2_1 - Tri3_2
                     for (VertexIdx k2_idx = 0; k2_idx < local_tri3_2.count; ++k2_idx){
                         VertexIdx k2 = local_tri3_2.triend[k2_idx];
-                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
-                        if(loc2 != -1){local_ret.clique5++;}
-                        else{
-                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
-                            if(loc1 != -1) {local_ret.clique9++;}
-                        }
+                        EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                        if(loc1 != -1) {local_ret.clique9++;}
+                        else{local_ret.clique5++;}
                     }
                 }
 
@@ -442,22 +446,16 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     VertexIdx k1 = local_tri2_2_2.triend[k1_idx];
                     for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri2_2_2.count; ++k2_idx){
                         VertexIdx k2 = local_tri2_2_2.triend[k2_idx];
-                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
-                        if(loc2 != -1){local_ret.clique4++;}
-                        else{
-                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
-                            if(loc1 != -1) {local_ret.clique7++;}
-                        }
+                        EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                        if(loc1 != -1) {local_ret.clique7++;}
+                        else{local_ret.clique4++;}
                     }
                     // Tri2_2_2 - Tri3_2
                     for (VertexIdx k2_idx = 0; k2_idx < local_tri3_2.count; ++k2_idx){
                         VertexIdx k2 = local_tri3_2.triend[k2_idx];
-                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
-                        if(loc2 != -1){local_ret.clique5++;}
-                        else{
-                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
-                            if(loc1 != -1) {local_ret.clique9++;}
-                        }
+                        EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                        if(loc1 != -1) {local_ret.clique9++;}
+                        else{local_ret.clique5++;}
                     }
                 }
 
@@ -466,12 +464,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     VertexIdx k1 = local_tri3_2.triend[k1_idx];
                     for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri3_2.count; ++k2_idx){
                         VertexIdx k2 = local_tri3_2.triend[k2_idx];
-                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
-                        if(loc2 != -1){local_ret.clique8++;}
-                        else{
-                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
-                            if(loc1 != -1) {local_ret.clique10++;}
-                        }
+                        EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                        if(loc1 != -1) {local_ret.clique10++;}
+                        else{local_ret.clique8++;}
                     }
                 }  
             }      

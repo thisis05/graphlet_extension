@@ -66,21 +66,11 @@ int main(int argc, char* argv[]) {
     auto end_time3 = high_resolution_clock::now();
     auto duration3 = duration_cast<milliseconds>(end_time3 - start_time3);
     double seconds3 = duration3.count() / 1000.0; // Convert milliseconds to seconds
-    printf("Execution time for Counting Motifs: %.3f\n", seconds3);
+    printf("Execution time for Counting Motifs (4-size): %.3f\n", seconds3);
     mEquation4(mcounts4);
 
-    // double mcounts4[40];
-    // printf("Count d-Motifs (4-size)\n");
-    // auto start_time3 = high_resolution_clock::now();
-    // countFour(&cg, &dag, &cg_2, &dag_2, mcounts4);
-    // auto end_time3 = high_resolution_clock::now();
-    // auto duration3 = duration_cast<milliseconds>(end_time3 - start_time3);
-    // double seconds3 = duration3.count() / 1000.0; // Convert milliseconds to seconds
-    // printf("Execution time for Counting Motifs: %.3f\n", seconds3);
-    // mEquation4(mcounts4);
-
     printf("Total Execution time for 3-size: %.3f\n", seconds1 + seconds2);
-    //printf("Total Execution time for 4-size: %.3f\n", seconds1 + seconds3);
+    printf("Total Execution time for 4-size: %.3f\n", seconds1 + seconds3);
 
     printf("# of Edge (1): %lld", cg.nEdges / 2);
     printf("\n# of Edge (2): %lld", cg_2.nEdges / 2);
