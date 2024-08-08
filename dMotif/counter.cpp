@@ -145,50 +145,31 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             const EdgeIdx start_2 = gout_2->offsets[i];
             const EdgeIdx end_2 = gout_2->offsets[i+1];
 
-            TriangleInfo local_tri1(gout_2->degree(i), gout_2->degree(i)-1);
-            TriangleInfo local_tri2_1(gout->degree(i), gout_2->degree(i));
-            TriangleInfo local_tri2_2_1(gout_2->degree(i), gout->degree(i));
-            TriangleInfo local_tri2_2_2(gout_2->degree(i), gout_2->degree(i)-1);
-            TriangleInfo local_tri3_1_1(gout->degree(i), gout->degree(i)-1);
-            TriangleInfo local_tri3_1_2(gout->degree(i), gout_2->degree(i));
-            TriangleInfo local_tri3_2(gout_2->degree(i), gout->degree(i));
-            TriangleInfo local_tri4(gout->degree(i), gout->degree(i)-1);
             
             for (EdgeIdx e_j = start; e_j < end; ++e_j) {
                 const VertexIdx j = gout->nbors[e_j];
-                EdgeIdx idx3_1_1 = local_tri3_1_1.idx;
-                EdgeIdx idx3_1_2 = local_tri3_1_2.idx;
-                EdgeIdx idx4 = local_tri4.idx;
-                EdgeIdx idx2_1 = local_tri2_1.idx;
-                Count isIncluded3_1_1 = 0;
-                Count isIncluded3_1_2 = 0;
-                Count isIncluded4 = 0;
-                Count isIncluded2_1 = 0;
+                
+                TriangleInfo local_tri2_1(gout_2->degree(i));
+                TriangleInfo local_tri3_1_1(gout->degree(i)-1);
+                TriangleInfo local_tri3_1_2(gout_2->degree(i));
+                TriangleInfo local_tri4(gout->degree(i)-1);
 
                 for (EdgeIdx e_k = e_j+1; e_k < end; ++e_k) {
                     const VertexIdx k = gout->nbors[e_k];
                     EdgeIdx loc112 = gout_2->getEdgeBinary(j, k);
                     if (loc112 != -1) {
                         local_ret.tri3++;
-                        if (isIncluded3_1_1 == 0){
-                            local_tri3_1_1.tri_idx[idx3_1_1] = e_j;
-                            isIncluded3_1_1 = 1;
-                        }
                         //printf("Debug: i=%lld, idx3_1_1=%lld, local_tri3_1_1 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx3_1_1, local_tri3_1_1.tri_k_counts[idx3_1_1], local_tri3_1_1.maxEdges, local_tri3_1_1.maxTri);
-                        local_tri3_1_1.tri_k[idx3_1_1][local_tri3_1_1.tri_k_counts[idx3_1_1]] = k;
-                        local_tri3_1_1.tri_k_counts[idx3_1_1]++;
+                        local_tri3_1_1.triend[local_tri3_1_1.count] = k;
+                        local_tri3_1_1.count++;
                     }
                     else{
                         EdgeIdx loc111 = gout->getEdgeBinary(j, k);
                         if (loc111 != -1) {
                             local_ret.tri4++;
-                            if (isIncluded4 == 0){
-                                local_tri4.tri_idx[idx4] = e_j;
-                                isIncluded4 = 1;
-                            }
                             //printf("Debug: i=%lld, idx4=%lld, local_tri4 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx4, local_tri4.tri_k_counts[idx4], local_tri4.maxEdges, local_tri4.maxTri);
-                            local_tri4.tri_k[idx4][local_tri4.tri_k_counts[idx4]] = k;
-                            local_tri4.tri_k_counts[idx4]++;
+                            local_tri4.triend[local_tri4.count] = k;
+                            local_tri4.count++;
                         }
                     }
                 }
@@ -199,78 +180,161 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     EdgeIdx loc122 = gout_2->getEdgeBinary(j, k);
                     if (loc122 != -1) {
                         local_ret.tri2++;
-                        if (isIncluded2_1 == 0){
-                            local_tri2_1.tri_idx[idx2_1] = e_j;
-                            isIncluded2_1 = 1;
-                        }
                         //printf("Debug: i=%lld, idx2_1=%lld, local_tri2_1 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx2_1, local_tri2_1.tri_k_counts[idx2_1], local_tri2_1.maxEdges, local_tri2_1.maxTri);
-                        local_tri2_1.tri_k[idx2_1][local_tri2_1.tri_k_counts[idx2_1]] = k;
-                        local_tri2_1.tri_k_counts[idx2_1]++;
+                        local_tri2_1.triend[local_tri2_1.count] = k;
+                        local_tri2_1.count++;
                     }
                     else{
                         EdgeIdx loc121 = gout->getEdgeBinary(j, k);
                         if (loc121 != -1) {
                             local_ret.tri3++;
-                            if (isIncluded3_1_2 == 0){
-                                local_tri3_1_2.tri_idx[idx3_1_2] = e_j;
-                                isIncluded3_1_2 = 1;
-                            }
                             //printf("Debug: i=%lld, idx3_1_2=%lld, local_tri3_1_2 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx3_1_2, local_tri3_1_2.tri_k_counts[idx3_1_2], local_tri3_1_2.maxEdges, local_tri3_1_2.maxTri);
-                            local_tri3_1_2.tri_k[idx3_1_2][local_tri3_1_2.tri_k_counts[idx3_1_2]] = k;
-                            local_tri3_1_2.tri_k_counts[idx3_1_2]++;
+                            local_tri3_1_2.triend[local_tri3_1_2.count] = k;
+                            local_tri3_1_2.count++;
                         }
                     }
                 }
 
-                for (VertexIdx k1_idx = 0; k1_idx < local_tri2_1.tri_k_counts[idx2_1]; ++k1_idx){
-                    VertexIdx k1 = local_tri2_1.tri_k[idx2_1][k1_idx];
-                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri2_1.tri_k_counts[idx2_1]; ++k2_idx){
-                        VertexIdx k2 = local_tri2_1.tri_k[idx2_1][k2_idx];
+                // 1. Tri4-based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri4.count; ++k1_idx){
+                    VertexIdx k1 = local_tri4.triend[k1_idx];
+                    // Tri4 - Tri4
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri4.count; ++k2_idx){
+                        VertexIdx k2 = local_tri4.triend[k2_idx];
                         EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
-                        if(loc2 != -1){local_ret.clique2++;}
+                        if(loc2 != -1){local_ret.clique10++;}
+                        else{
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique11++;}
+                        }
+                    }
+                    // Tri4 - Tri3_1_1
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_1_1.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique9++;}
+                        else{
+                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique10++;}
+                        }
+                    }
+                    //Tri4 - Tri3_1_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_1_2.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique9++;}
+                        else{
+                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique10++;}
+                        }
+                    }
+                    //Tri4 - Tri2_1
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri2_1.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique7++;}
+                        else{
+                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique9++;}
+                        }
                     }
                 }
 
-                if (isIncluded3_1_1 == 1){local_tri3_1_1.idx++;}
-                if (isIncluded3_1_2 == 1){local_tri3_1_2.idx++;}
-                if (isIncluded4 == 1){local_tri4.idx++;}
-                if (isIncluded2_1 == 1){local_tri2_1.idx++;}                
+                // 2. Tri2_1-based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri2_1.count; ++k1_idx){
+                    VertexIdx k1 = local_tri2_1.triend[k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri2_1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri2_1.triend[k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique2++;}
+                        else{
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique3++;}
+                        }
+                    }
+                    // Tri2_1 - Tri3_1_1
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_1_1.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique4++;}
+                        else{
+                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique5++;}
+                        }
+                    }
+                    //Tri2_1 - Tri3_1_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_1_2.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique4++;}
+                        else{
+                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique5++;}
+                        }
+                    }
+                }
+
+                // 3. Tri3_1_1 based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri3_1_1.count; ++k1_idx){
+                    VertexIdx k1 = local_tri3_1_1.triend[k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri3_1_1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_1_1.triend[k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique6++;}
+                        else{
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique9++;}
+                        }
+                    }
+                    // Tri3_1_1 - Tri3_1_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_1_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_1_2.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique5++;}
+                        else{
+                            EdgeIdx loc1 = k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique8++;}
+                        }
+                    }
+                }
+
+                // 3. Tri3_1_2 based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri3_1_2.count; ++k1_idx){
+                    VertexIdx k1 = local_tri3_1_2.triend[k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri3_1_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_1_2.triend[k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique6++;}
+                        else{
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique9++;}
+                        }
+                    }
+                }           
             }
             
 
             for (EdgeIdx e_j = start_2; e_j < end_2; ++e_j) {
                 const VertexIdx j = gout_2->nbors[e_j];
-                EdgeIdx idx3_2 = local_tri3_2.idx;
-                EdgeIdx idx1 = local_tri1.idx;
-                EdgeIdx idx2_2_1 = local_tri2_2_1.idx;
-                EdgeIdx idx2_2_2 = local_tri2_2_2.idx;
-                Count isIncluded2_2_1 = 0;
-                Count isIncluded2_2_2 = 0;
-                Count isIncluded1 = 0;
-                Count isIncluded3_2 = 0;
+
+                TriangleInfo local_tri1(gout_2->degree(i)-1);
+                TriangleInfo local_tri3_2(gout->degree(i));
+                TriangleInfo local_tri2_2_1(gout->degree(i));
+                TriangleInfo local_tri2_2_2(gout_2->degree(i)-1);
 
                 for (EdgeIdx e_k = e_j+1; e_k < end_2; ++e_k) {
                     const VertexIdx k = gout_2->nbors[e_k];
                     EdgeIdx loc_222 = gout_2->getEdgeBinary(j, k);
                     if (loc_222 != -1) {
-                        local_ret.tri1++;
-                        if (isIncluded1 == 0){
-                            local_tri1.tri_idx[idx1] = e_j;
-                            isIncluded1 = 1;
-                        }
-                        local_tri1.tri_k[idx1][local_tri1.tri_k_counts[idx1]] = k;
-                        local_tri1.tri_k_counts[idx1]++;
+                        local_tri1.triend[local_tri1.count]= k;
+                        local_tri1.count++;
                     }
                     else{
                         EdgeIdx loc221 = gout->getEdgeBinary(j, k);
                         if (loc221 != -1) {
                             local_ret.tri2++;
-                            if (isIncluded2_2_2 == 0){
-                                local_tri2_2_2.tri_idx[idx2_2_2] = e_j;
-                                isIncluded2_2_2 = 1;
-                            }
-                            local_tri2_2_2.tri_k[idx2_2_2][local_tri2_2_2.tri_k_counts[idx2_2_2]] = k;
-                            local_tri2_2_2.tri_k_counts[idx2_2_2]++;
+                            local_tri2_2_2.triend[local_tri2_2_2.count] = k;
+                            local_tri2_2_2.count++;
                         }
                     }
                 }
@@ -281,32 +345,25 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     EdgeIdx loc212 = gout_2->getEdgeBinary(j, k);
                     if (loc212 != -1) {
                         local_ret.tri2++;
-                        if (isIncluded2_2_1 == 0){
-                            local_tri2_2_1.tri_idx[idx2_2_1] = e_j;
-                            isIncluded2_2_1 = 1;
-                        }
                         //printf("Debug: i=%lld, idx2_2_1=%lld, local_tri2_2_1 counts=%lld, maxEdges=%lld, maxTri=%lld\n", i, idx2_2_1, local_tri2_2_1.tri_k_counts[idx2_2_1], local_tri2_2_1.maxEdges, local_tri2_2_1.maxTri);
-                        local_tri2_2_1.tri_k[idx2_2_1][local_tri2_2_1.tri_k_counts[idx2_2_1]] = k;
-                        local_tri2_2_1.tri_k_counts[idx2_2_1]++;
+                        local_tri2_2_1.triend[local_tri2_2_1.count] = k;
+                        local_tri2_2_1.count++;
                     }
                     else{
                         EdgeIdx loc211 = gout->getEdgeBinary(j, k);
                         if (loc211 != -1) {
                             local_ret.tri3++;
-                            if (isIncluded3_2 == 0){
-                                local_tri3_2.tri_idx[idx3_2] = e_j;
-                                isIncluded3_2 = 1;
-                            }
-                            local_tri3_2.tri_k[idx3_2][local_tri3_2.tri_k_counts[idx3_2]] = k;
-                            local_tri3_2.tri_k_counts[idx3_2]++;
+                            local_tri3_2.triend[local_tri3_2.count] = k;
+                            local_tri3_2.count++;
                         }
                     }
                 }
-                //d1-1
-                for (VertexIdx k1_idx = 0; k1_idx < local_tri1.tri_k_counts[idx1]; ++k1_idx){
-                    VertexIdx k1 = local_tri1.tri_k[idx1][k1_idx];
-                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri1.tri_k_counts[idx1]; ++k2_idx){
-                        VertexIdx k2 = local_tri1.tri_k[idx1][k2_idx];
+
+                // 1. Tri1-based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri1.count; ++k1_idx){
+                    VertexIdx k1 = local_tri1.triend[k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri1.triend[k2_idx];
                         EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
                         if(loc2 != -1){local_ret.clique1++;}
                         else{
@@ -314,22 +371,109 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                             if(loc1 != -1) {local_ret.clique2++;}
                         }
                     }
-                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_1.tri_k_counts[idx2_2_1]; ++k2_idx){
-                        VertexIdx k2 = local_tri2_2_1.tri_k[idx2_2_1][k2_idx];
+                    // Tri1 - Tri2_2_1
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri2_2_1.triend[k2_idx];
                         EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
                         if(loc2 != -1){local_ret.clique2++;}
+                        else{
+                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique4++;}
+                        }
                     }
-                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_2.tri_k_counts[idx2_2_2]; ++k2_idx){
-                        VertexIdx k2 = local_tri2_2_2.tri_k[idx2_2_2][k2_idx];
+                    // Tri1 - Tri2_2_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri2_2_2.triend[k2_idx];
                         EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
                         if(loc2 != -1){local_ret.clique2++;}
+                        else{
+                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique4++;}
+                        }
+                    }
+                    // Tri1 - Tri3_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_2.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique4++;}
+                        else{
+                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique6++;}
+                        }
                     }
                 } 
-                
-                if (isIncluded1 == 1){local_tri1.idx++;}
-                if (isIncluded3_2 == 1){local_tri3_2.idx++;}
-                if (isIncluded2_2_1 == 1){local_tri2_2_1.idx++;}
-                if (isIncluded2_2_2 == 1){local_tri2_2_2.idx++;}         
+
+                // 2. Tri2_2_1-based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri2_2_1.count; ++k1_idx){
+                    VertexIdx k1 = local_tri2_2_1.triend[k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri2_2_1.count; ++k2_idx){
+                        VertexIdx k2 = local_tri2_2_1.triend[k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique4++;}
+                        else{
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique7++;}
+                        }
+                    }
+                    // Tri2_2_1 - Tri2_2_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri2_2_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri2_2_2.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique3++;}
+                        else{
+                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique5++;}
+                        }
+                    }
+                    // Tri2_2_1 - Tri3_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_2.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique5++;}
+                        else{
+                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique9++;}
+                        }
+                    }
+                }
+
+                // 3. Tri2_2_2-based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri2_2_2.count; ++k1_idx){
+                    VertexIdx k1 = local_tri2_2_2.triend[k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri2_2_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri2_2_2.triend[k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique4++;}
+                        else{
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique7++;}
+                        }
+                    }
+                    // Tri2_2_2 - Tri3_2
+                    for (VertexIdx k2_idx = 0; k2_idx < local_tri3_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_2.triend[k2_idx];
+                        EdgeIdx loc2 = k1 < k2 ? gout_2->getEdgeBinary(k1, k2): gout_2->getEdgeBinary(k2, k1);
+                        if(loc2 != -1){local_ret.clique5++;}
+                        else{
+                            EdgeIdx loc1 =  k1 < k2 ? gout->getEdgeBinary(k1, k2): gout->getEdgeBinary(k2, k1);
+                            if(loc1 != -1) {local_ret.clique9++;}
+                        }
+                    }
+                }
+
+                // 4. Tri3_2-based
+                for (VertexIdx k1_idx = 0; k1_idx < local_tri3_2.count; ++k1_idx){
+                    VertexIdx k1 = local_tri3_2.triend[k1_idx];
+                    for (VertexIdx k2_idx = k1_idx+1; k2_idx < local_tri3_2.count; ++k2_idx){
+                        VertexIdx k2 = local_tri3_2.triend[k2_idx];
+                        EdgeIdx loc2 = gout_2->getEdgeBinary(k1, k2);
+                        if(loc2 != -1){local_ret.clique8++;}
+                        else{
+                            EdgeIdx loc1 = gout->getEdgeBinary(k1, k2);
+                            if(loc1 != -1) {local_ret.clique10++;}
+                        }
+                    }
+                }  
             }      
         }
         
@@ -342,6 +486,15 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             ret.tri4 += local_ret.tri4;
             ret.clique1 += local_ret.clique1;
             ret.clique2 += local_ret.clique2;
+            ret.clique3 += local_ret.clique3;
+            ret.clique4 += local_ret.clique4;
+            ret.clique5 += local_ret.clique5;
+            ret.clique6 += local_ret.clique6;
+            ret.clique7 += local_ret.clique7;
+            ret.clique8 += local_ret.clique8;
+            ret.clique9 += local_ret.clique9;
+            ret.clique10 += local_ret.clique10;
+            ret.clique11 += local_ret.clique11;
         }
 
     }
@@ -400,6 +553,15 @@ void countFour(CGraph *cg, CDAG *dag, CGraph *cg_2, CDAG *dag_2, double (&mcount
     
     mcounts[6] = motifcounts.clique1;
     mcounts[7] = motifcounts.clique2;
+    mcounts[8] = motifcounts.clique3;
+    mcounts[9] = motifcounts.clique4;
+    mcounts[10] = motifcounts.clique5;
+    mcounts[11] = motifcounts.clique6;
+    mcounts[12] = motifcounts.clique7;
+    mcounts[13] = motifcounts.clique8;
+    mcounts[14] = motifcounts.clique9;
+    mcounts[15] = motifcounts.clique10;
+    mcounts[16] = motifcounts.clique11;
 }
 
 void mEquation3(double (&mcounts)[6]){
@@ -419,4 +581,13 @@ void mEquation4(double (&mcounts)[40]){
     printf("Tri4 : %.1f\n", mcounts[5]);
     printf("d1-1 : %.1f\n", mcounts[6]);
     printf("d1-2 : %.1f\n", mcounts[7]);
+    printf("d1-3 : %.1f\n", mcounts[8]);
+    printf("d1-4 : %.1f\n", mcounts[9]);
+    printf("d1-5 : %.1f\n", mcounts[10]);
+    printf("d1-6 : %.1f\n", mcounts[11]);
+    printf("d1-7 : %.1f\n", mcounts[12]);
+    printf("d1-8 : %.1f\n", mcounts[13]);
+    printf("d1-9 : %.1f\n", mcounts[14]);
+    printf("d1-10 : %.1f\n", mcounts[15]);
+    printf("d1-11 : %.1f\n", mcounts[16]);
 }

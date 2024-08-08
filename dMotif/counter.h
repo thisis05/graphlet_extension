@@ -20,33 +20,18 @@ struct ThreeSizeInfo {
 };
 
 struct TriangleInfo {
-    EdgeIdx** tri_k;        // 각 엣지에 대한 k 값 배열
-    EdgeIdx* tri_k_counts;  // 각 엣지에 대한 k 값 개수
-    EdgeIdx* tri_idx; //idx mapping
-    Count maxEdges;
+    VertexIdx* triend;
+    Count count;
     Count maxTri;
-    Count idx;
 
-    TriangleInfo(Count edges, Count degree) {
-        maxEdges = edges;
+    TriangleInfo(Count degree) {
         maxTri = degree;
-        idx = 0;
-        tri_k = new EdgeIdx*[maxEdges];
-        tri_idx = new EdgeIdx[maxEdges]();
-        tri_k_counts = new EdgeIdx[maxEdges]();
-
-        for (EdgeIdx e = 0; e < maxEdges; ++e) {
-            tri_k[e] = new EdgeIdx[maxTri]();
-        }
+        count = 0;
+        triend = new VertexIdx[maxTri]();
     }
 
     ~TriangleInfo() {
-        for (EdgeIdx e = 0; e < maxEdges; ++e) {
-            delete[] tri_k[e];
-        }
-        delete[] tri_k;
-        delete[] tri_idx;
-        delete[] tri_k_counts;
+        delete[] triend;
     }
 };
 
