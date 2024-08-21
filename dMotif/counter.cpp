@@ -96,7 +96,6 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
 FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) {
 
     FourSizeInfo ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
-    
     const Count num_threads = 11;
 
     omp_set_num_threads(num_threads);
@@ -138,6 +137,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             for (e_j = start; e_j < end; ++e_j) {
                 j = gout->nbors[e_j];
                 
+                local_ret.path3 += (gout_2->degree(i) + gin_2->degree(i)) * (gout_2->degree(i) + gin_2->degree(j));
                 TriangleInfo local_tri2_1(gout_2->degree(i));
                 TriangleInfo local_tri3_1_1(gout->degree(i)-1);
                 TriangleInfo local_tri3_1_2(gout_2->degree(i));
@@ -154,6 +154,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         all_local_tri4[thread_id][e_j]++;
                         all_local_tri4[thread_id][e_k]++;
                         all_local_tri4[thread_id][loc111]++;
+                        local_ret.tailed8 += gout_2->degree(i) + gin_2->degree(i) + gout_2->degree(j) + gin_2->degree(j) + gout_2->degree(k) + gin_2->degree(k);
                     }
                     else{
                         loc112 = gout_2->getEdgeBinary(j, k);
@@ -164,6 +165,8 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         all_local_tri3_1[thread_id][e_j]++;
                         all_local_tri3_1[thread_id][e_k]++;
                         all_local_tri3_2[thread_id][loc112]++;
+                        local_ret.tailed6 += gout_2->degree(i) + gin_2->degree(i);
+                        local_ret.tailed7 += gout_2->degree(j) - 1 + gin_2->degree(j) + gout_2->degree(k) + gin_2->degree(k) - 1;
                     }
                 }
 
@@ -179,6 +182,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         all_local_tri2_1[thread_id][e_j]++;
                         all_local_tri2_2[thread_id][e_k]++;
                         all_local_tri2_2[thread_id][loc122]++;
+                        local_ret.tailed3 += gout_2->degree(i) - 1 + gin_2->degree(i) + gout_2->degree(j) - 1 + gin_2->degree(j);
+                        local_ret.tailed4 += gout_2->degree(k) + gin_2->degree(k) - 2;
+                        local_ret.tailed5 += gout->degree(k) + gin->degree(k);
                     }
                     else{
                         loc121 = gout->getEdgeBinary(j, k);
@@ -190,6 +196,8 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                             all_local_tri3_1[thread_id][e_j]++;
                             all_local_tri3_2[thread_id][e_k]++;
                             all_local_tri3_1[thread_id][loc121]++;
+                            local_ret.tailed6 += gout_2->degree(j) + gin_2->degree(j);
+                            local_ret.tailed7 += gout_2->degree(i) - 1 + gin_2->degree(i) + gout_2->degree(k) + gin_2->degree(k) - 1;
                         }
                     }
                 }
@@ -197,13 +205,19 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                 //e1 out - e2 out
                 for (e_k = gout_2->offsets[j]; e_k < gout_2->offsets[j+1]; ++e_k) {
                     k = gout_2->nbors[e_k];
+                    //printf("e1 out - e2 out : %lld - %lld - %lld ", i, j, k);
                     local_star2_1[k]++;
+                    //printf("local_star2_1[%lld] : %lld\n", k, local_star2_1[k]);
+                    
                 }
 
                 //e1 out - e2 in
                 for (e_k = gin_2->offsets[j]; e_k < gin_2->offsets[j+1]; ++e_k){
                     k = gin_2->nbors[e_k];
-                    if (k > i){local_star2_1[k]++;}
+                    if (k > i){
+                        //printf("e1 out - e2 in : %lld - %lld - %lld\n", i, j, k);
+                        local_star2_1[k]++;
+                    }
                 }
 
                 // 1. Tri4-based
@@ -312,6 +326,14 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
 
             for (e_j = start_2; e_j < end_2; ++e_j) {
                 j = gout_2->nbors[e_j];
+                
+                Count degree_i = gout->degree(i) + gin->degree(i);
+                Count degree2_i = gout_2->degree(i) + gin_2->degree(i);
+                Count degree_j = gout->degree(j) + gin->degree(j);
+                Count degree2_j = gout_2->degree(j) + gin_2->degree(j);
+                local_ret.path1 += (degree2_i - 1) * (degree2_j - 1);
+                local_ret.path2 += ((degree2_i - 1) * degree_j) + (degree_i * (degree2_j - 1));
+                local_ret.path4 += degree_i * degree_j;
 
                 TriangleInfo local_tri1(gout_2->degree(i)-1);
                 TriangleInfo local_tri3_2(gout->degree(i));
@@ -328,6 +350,8 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         all_local_tri1[thread_id][e_j]++;
                         all_local_tri1[thread_id][e_k]++;
                         all_local_tri1[thread_id][loc_222]++;
+                        local_ret.tailed1 += gout_2->degree(i) - 2 + gin_2->degree(i) + gout_2->degree(j) - 1 + gin_2->degree(j) - 1 + gout_2->degree(k) + gin_2->degree(k) - 2;
+                        local_ret.tailed2 += gout->degree(i) + gin->degree(i) + gout->degree(j) + gin->degree(j) + gout->degree(k) + gin->degree(k);
                     }
                     else{
                         loc221 = gout->getEdgeBinary(j, k);
@@ -338,6 +362,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                             all_local_tri2_2[thread_id][e_j]++;
                             all_local_tri2_2[thread_id][e_k]++;
                             all_local_tri2_1[thread_id][loc221]++;
+                            local_ret.tailed3 += gout_2->degree(j) + gin_2->degree(j) - 1 + gout_2->degree(k) + gin_2->degree(k) - 1;
+                            local_ret.tailed4 += gout_2->degree(i) - 2 + gin_2->degree(i);
+                            local_ret.tailed5 += gout->degree(i) + gin->degree(i);
                         }
                     }
                 }
@@ -354,6 +381,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                         all_local_tri2_2[thread_id][e_j]++;
                         all_local_tri2_1[thread_id][e_k]++;
                         all_local_tri2_2[thread_id][loc212]++;
+                        local_ret.tailed3 += gout_2->degree(i) - 1 + gin_2->degree(i) + gout_2->degree(k) + gin_2->degree(k) - 1;
+                        local_ret.tailed4 += gout_2->degree(j) - 1 + gin_2->degree(j) - 1;
+                        local_ret.tailed5 += gout->degree(j) + gin->degree(j);
                     }
                     else{
                         loc211 = gout->getEdgeBinary(j, k);
@@ -364,6 +394,8 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                             all_local_tri3_2[thread_id][e_j]++;
                             all_local_tri3_1[thread_id][e_k]++;
                             all_local_tri3_1[thread_id][loc211]++;
+                            local_ret.tailed6 += gout_2->degree(k) + gin_2->degree(k);
+                            local_ret.tailed7 += gout_2->degree(i) - 1  + gin_2->degree(i) + gout_2->degree(j) + gin_2->degree(j) - 1;
                         }
                     }
                 }
@@ -371,12 +403,14 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                 //e2 out - e2 out
                 for (e_k = gout_2->offsets[j]; e_k < gout_2->offsets[j+1]; ++e_k) {
                     k = gout_2->nbors[e_k];
+                    //printf("e2 out - e2 out : %lld - %lld - %lld\n", i, j, k);
                     local_star1[k]++;
                 }
                 
                 //e2 out - e2 in
                 for (e_k = gin_2->offsets[j]; e_k < gin_2->offsets[j+1]; ++e_k) {
                     k = gin_2->nbors[e_k];
+                    //printf("e2 out - e2 in : %lld - %lld - %lld\n", i, j, k);
                     if (k > i){local_star1[k]++;}
                 }
 
@@ -503,17 +537,23 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
                     k = gout_2->nbors[e_k];
                     local_ret.cycle1 += (local_star1[k] * (local_star1[k] - 1)) / 2;
                     local_ret.cycle2 += (local_star1[k] * (local_star2_1[k] + local_star2_2[k]));
+                    //printf("%lld to %lld : star1 %lld and star2_1 %lld and star2_2 %lld\n", i, k, local_star1[k], local_star2_1[k], local_star2_2[k]);
                     local_star1[k] = 0;
                 }
 
                 for (e_k = gin_2->offsets[j]; e_k < gin_2->offsets[j+1]; ++e_k) {
                     k = gin_2->nbors[e_k];
-                    if (k > i) {
+                    if (k > i) {    
                         local_ret.cycle1 += (local_star1[k] * (local_star1[k] - 1)) / 2;
                         local_ret.cycle2 += (local_star1[k] * (local_star2_1[k] + local_star2_2[k]));
+                        //printf("%lld to %lld : star1 %lld and star2_1 %lld and star2_2 %lld\n", i, k, local_star1[k], local_star2_1[k], local_star2_2[k]);
+                        local_star1[k] = 0;
                     }
-                    local_star1[k] = 0;
                 }
+            }
+
+            for (e_j = gout_2->offsets[i]; e_j < gout_2->offsets[i+1]; ++e_j){
+                j = gout_2->nbors[e_j];
 
                 for (e_k = gout->offsets[j]; e_k < gout->offsets[j+1]; ++e_k) {
                     k = gout->nbors[e_k];
@@ -543,6 +583,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             ret.tri2 += local_ret.tri2;
             ret.tri3 += local_ret.tri3;
             ret.tri4 += local_ret.tri4;
+            
             ret.clique1 += local_ret.clique1;
             ret.clique2 += local_ret.clique2;
             ret.clique3 += local_ret.clique3;
@@ -554,9 +595,24 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             ret.clique9 += local_ret.clique9;
             ret.clique10 += local_ret.clique10;
             ret.clique11 += local_ret.clique11;
+            
+            ret.tailed1 += local_ret.tailed1;
+            ret.tailed2 += local_ret.tailed2;
+            ret.tailed3 += local_ret.tailed3;
+            ret.tailed4 += local_ret.tailed4;
+            ret.tailed5 += local_ret.tailed5;
+            ret.tailed6 += local_ret.tailed6;
+            ret.tailed7 += local_ret.tailed7;
+            ret.tailed8 += local_ret.tailed8;
+
             ret.cycle1 += local_ret.cycle1;
             ret.cycle2 += local_ret.cycle2;
             ret.cycle3 += local_ret.cycle3;
+
+            ret.path1 += local_ret.path1;
+            ret.path2 += local_ret.path2;
+            ret.path3 += local_ret.path3;
+            ret.path4 += local_ret.path4;
         }
 
     }
@@ -626,53 +682,48 @@ void countThree(CGraph *cg, CDAG *dag, CGraph *cg_2, CDAG *dag_2, double (&mcoun
     mcounts[5] = tricount.tri4;
 }
 
-void countFour(CGraph *cg, CDAG *dag, CGraph *cg_2, CDAG *dag_2, double (&mcounts)[40]){
-
-    // 1. Count Three
-    double w1 = 0, w2 = 0, t3 = 0; // # of 3-size d-Motifs : wedge 1, 2 & Triangle 1, 2, 3, 4 
-    VertexIdx n = cg->nVertices;
-
-    for (VertexIdx i = 0; i < n; i++){
-        VertexIdx deg = cg->degree(i); // degree of i
-        VertexIdx deg_2 = cg_2->degree(i); // degree2 of i
-
-        w1 += deg_2 * (deg_2-1) / 2;
-        w2 += deg * deg_2; 
-        t3 += deg * (deg-1) / 2; 
-    }
-
-    mcounts[0] = w1;
-    mcounts[1] = w2;
+void countFour(CDAG *dag, CDAG *dag_2, double (&mcounts)[36]){
     
     FourSizeInfo motifcounts = get4size(&(dag->outlist), &(dag->inlist), &(dag_2->outlist), &(dag_2->inlist));
-    mcounts[2] = motifcounts.tri1;
-    mcounts[3] = motifcounts.tri2;
-    mcounts[4] = motifcounts.tri3;
-    mcounts[5] = motifcounts.tri4;
+
+    mcounts[0] = motifcounts.clique1;
+    mcounts[1] = motifcounts.clique2;
+    mcounts[2] = motifcounts.clique3;
+    mcounts[3] = motifcounts.clique4;
+    mcounts[4] = motifcounts.clique5;
+    mcounts[5] = motifcounts.clique6;
+    mcounts[6] = motifcounts.clique7;
+    mcounts[7] = motifcounts.clique8;
+    mcounts[8] = motifcounts.clique9;
+    mcounts[9] = motifcounts.clique10;
+    mcounts[10] = motifcounts.clique11;
     
-    mcounts[6] = motifcounts.clique1;
-    mcounts[7] = motifcounts.clique2;
-    mcounts[8] = motifcounts.clique3;
-    mcounts[9] = motifcounts.clique4;
-    mcounts[10] = motifcounts.clique5;
-    mcounts[11] = motifcounts.clique6;
-    mcounts[12] = motifcounts.clique7;
-    mcounts[13] = motifcounts.clique8;
-    mcounts[14] = motifcounts.clique9;
-    mcounts[15] = motifcounts.clique10;
-    mcounts[16] = motifcounts.clique11;
-    mcounts[17] = motifcounts.chord1;
-    mcounts[18] = motifcounts.chord2;
-    mcounts[19] = motifcounts.chord3;
-    mcounts[20] = motifcounts.chord4;
-    mcounts[21] = motifcounts.chord5;
-    mcounts[22] = motifcounts.chord6;
-    mcounts[23] = motifcounts.chord7;
-    mcounts[24] = motifcounts.chord8;
+    mcounts[11] = motifcounts.chord1;
+    mcounts[12] = motifcounts.chord2;
+    mcounts[13] = motifcounts.chord3;
+    mcounts[14] = motifcounts.chord4;
+    mcounts[15] = motifcounts.chord5;
+    mcounts[16] = motifcounts.chord6;
+    mcounts[17] = motifcounts.chord7;
+    mcounts[18] = motifcounts.chord8;
+
+    mcounts[19] = motifcounts.tailed1;
+    mcounts[20] = motifcounts.tailed2;
+    mcounts[21] = motifcounts.tailed3;
+    mcounts[22] = motifcounts.tailed4;
+    mcounts[23] = motifcounts.tailed5;
+    mcounts[24] = motifcounts.tailed6;
+    mcounts[25] = motifcounts.tailed7;
+    mcounts[26] = motifcounts.tailed8;
     
-    mcounts[33] = motifcounts.cycle1;
-    mcounts[34] = motifcounts.cycle2;
-    mcounts[35] = motifcounts.cycle3;
+    mcounts[27] = motifcounts.cycle1;
+    mcounts[28] = motifcounts.cycle2;
+    mcounts[29] = motifcounts.cycle3;
+
+    mcounts[32] = motifcounts.path1 - 3 * motifcounts.tri1;
+    mcounts[33] = motifcounts.path2 - 3 * motifcounts.tri2;
+    mcounts[34] = motifcounts.path3 - 3 * motifcounts.tri2;
+    mcounts[35] = motifcounts.path4 - 3 * motifcounts.tri3;
 }
 
 void mEquation3(double (&mcounts)[6]){
@@ -685,37 +736,53 @@ void mEquation3(double (&mcounts)[6]){
     printf("Tri4 : %.1f\n", mcounts[5]);
 }
 
-void mEquation4(double (&mcounts)[40]){
-    printf("Tri1 : %.1f\n", mcounts[2]);
-    printf("Tri2 : %.1f\n", mcounts[3]);
-    printf("Tri3 : %.1f\n", mcounts[4]);
-    printf("Tri4 : %.1f\n", mcounts[5]);
-    printf("d1-1 : %.1f\n", mcounts[6]);
-    printf("d1-2 : %.1f\n", mcounts[7]);
-    printf("d1-3 : %.1f\n", mcounts[8]);
-    printf("d1-4 : %.1f\n", mcounts[9]);
-    printf("d1-5 : %.1f\n", mcounts[10]);
-    printf("d1-6 : %.1f\n", mcounts[11]);
-    printf("d1-7 : %.1f\n", mcounts[12]);
-    printf("d1-8 : %.1f\n", mcounts[13]);
-    printf("d1-9 : %.1f\n", mcounts[14]);
-    printf("d1-10 : %.1f\n", mcounts[15]);
-    printf("d1-11 : %.1f\n", mcounts[16]);
-    double d2_1 = mcounts[17] - 6 * mcounts[6] - mcounts[7];
-    double d2_2 = mcounts[18] - mcounts[7] - 2 * mcounts[8];
-    double d2_3 = mcounts[19] - 4 * mcounts[7] - 2 * mcounts[9];
-    double d2_4 = mcounts[20] - 4 * mcounts[8] - mcounts[10] - mcounts[9] - 3 * mcounts[12];
-    double d2_5 = mcounts[21] - 2 * mcounts[9] - 2 * mcounts[10];
-    double d2_8 = mcounts[24] - mcounts[10] - 4 * mcounts[13] - 3 * mcounts[11] - mcounts[14];
+void mEquation4(double (&mcounts)[36]){
+
+    printf("d1-1 : %.1f\n", mcounts[0]);
+    printf("d1-2 : %.1f\n", mcounts[1]);
+    printf("d1-3 : %.1f\n", mcounts[2]);
+    printf("d1-4 : %.1f\n", mcounts[3]);
+    printf("d1-5 : %.1f\n", mcounts[4]);
+    printf("d1-6 : %.1f\n", mcounts[5]);
+    printf("d1-7 : %.1f\n", mcounts[6]);
+    printf("d1-8 : %.1f\n", mcounts[7]);
+    printf("d1-9 : %.1f\n", mcounts[8]);
+    printf("d1-10 : %.1f\n", mcounts[9]);
+    printf("d1-11 : %.1f\n", mcounts[10]);
+
+    double d2_1 = mcounts[11] - 6 * mcounts[0] - mcounts[1];
+    double d2_2 = mcounts[12] - mcounts[1] - 2 * mcounts[2];
+    double d2_3 = mcounts[13] - 4 * mcounts[1] - 2 * mcounts[3];
+    double d2_4 = mcounts[14] - 4 * mcounts[2] - mcounts[4] - mcounts[3] - 3 * mcounts[6];
+    double d2_5 = mcounts[15] - 2 * mcounts[3] - 2 * mcounts[4];
+    double d2_6 = mcounts[16] - mcounts[3] - 3 * mcounts[5];
+    double d2_7 = mcounts[17] - 3 * mcounts[6] - mcounts[8];
+    double d2_8 = mcounts[18] - mcounts[4] - 4 * mcounts[7] - 3 * mcounts[5] - mcounts[8];
+    
     printf("d2-1 : %.1f\n", d2_1);
     printf("d2-2 : %.1f\n", d2_2);
     printf("d2-3 : %.1f\n", d2_3);
     printf("d2-4 : %.1f\n", d2_4);
     printf("d2-5 : %.1f\n", d2_5);
-    printf("d2-6 : %.1f\n", mcounts[22] - mcounts[9] - 3 * mcounts[11]);
-    printf("d2-7 : %.1f\n", mcounts[23] - 3 * mcounts[12] - mcounts[14]);
+    printf("d2-6 : %.1f\n", d2_6);
+    printf("d2-7 : %.1f\n", d2_7);
     printf("d2-8 : %.1f\n", d2_8);
-    printf("d4-1 : %.1f\n", mcounts[33] - d2_1 - d2_2 - 3 * mcounts[6] - mcounts[7] - mcounts[8]);
-    printf("d4-2 : %.1f\n", mcounts[34] - d2_3 - d2_5 - 2 * mcounts[7] - mcounts[9] - mcounts[10]);
-    printf("d4-3 : %.1f\n", mcounts[35] - d2_4 - d2_8 - 2 * mcounts[8] - mcounts[10] - 2 * mcounts[13]);
+
+    printf("d3-1 : %.1f\n", mcounts[19] - 4 * mcounts[11] - mcounts[13] + 12 * mcounts[0] + 4 * mcounts[1] + mcounts[3]);
+    printf("d3-2 : %.1f\n", mcounts[20] - mcounts[13] - 2 * mcounts[16] + 2 * mcounts[1] + 2 * mcounts[3] + 3 * mcounts[5]);
+    printf("d3-3 : %.1f\n", mcounts[21] - 4 * d2_2 - d2_3 - 2 * d2_4 - d2_5 - 4 * mcounts[1] - 8 * mcounts[2] - 2 * mcounts[3] - 2 * mcounts[4]);
+    printf("d3-4 : %.1f\n", mcounts[22] - d2_3 - 2 * mcounts[1] - 2 * mcounts[3] - 3 * mcounts[6]);
+    printf("d3-5 : %.1f\n", mcounts[23] - 2 * d2_4 - 4 * mcounts[2] - 2 * mcounts[4] - mcounts[8]);
+    printf("d3-6 : %.1f\n", mcounts[24] - d2_5 - 2 * d2_8 - mcounts[3] - 2 * mcounts[4] - 4 * mcounts[7]);
+    printf("d3-7 : %.1f\n", mcounts[25] - d2_5 - 2 * d2_6 - 2 * mcounts[3] - 2 * mcounts[4] - 6 * mcounts[5] - 2 * mcounts[8]);
+    printf("d3-8 : %.1f\n", mcounts[26] - 2 * mcounts[17] - mcounts[8] - 2 * mcounts[9] + 3 * mcounts[6] + mcounts[8]);
+
+    printf("d4-1 : %.1f\n", mcounts[27] - d2_1 - d2_2 - 3 * mcounts[0] - mcounts[1] - mcounts[2]);
+    printf("d4-2 : %.1f\n", mcounts[28] - d2_3 - d2_5 - 2 * mcounts[1] - 2 * mcounts[3] - mcounts[4]);
+    printf("d4-3 : %.1f\n", mcounts[29] - d2_4 - d2_8 - 2 * mcounts[2] - mcounts[4] - 2 * mcounts[7]);
+
+    printf("d6-1 : %.1f\n", mcounts[32]);
+    printf("d6-2 : %.1f\n", mcounts[33]);
+    printf("d6-3 : %.1f\n", mcounts[34]);
+    printf("d6-4 : %.1f\n", mcounts[35]);
 }

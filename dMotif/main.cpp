@@ -59,10 +59,10 @@ int main(int argc, char* argv[]) {
     mEquation3(mcounts3);
 
     // 2. Count 4-size d-Motifs
-    double mcounts4[40];
+    double mcounts4[36];
     printf("Count d-Motifs (4-size)\n");
     auto start_time3 = high_resolution_clock::now();
-    countFour(&cg, &dag, &cg_2, &dag_2, mcounts4);
+    countFour(&dag, &dag_2, mcounts4);
     auto end_time3 = high_resolution_clock::now();
     auto duration3 = duration_cast<milliseconds>(end_time3 - start_time3);
     double seconds3 = duration3.count() / 1000.0; // Convert milliseconds to seconds
