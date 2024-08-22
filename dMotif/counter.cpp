@@ -21,7 +21,7 @@ ThreeSizeInfo get3size(CGraph *gout, CGraph *gout_2) {
     {
         ThreeSizeInfo local_ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
         
-        #pragma omp for schedule(dynamic, 64)
+        #pragma omp for schedule(guided)
         for (VertexIdx i = 0; i < gout->nVertices; ++i) {
             const EdgeIdx start = gout->offsets[i];
             const EdgeIdx end = gout->offsets[i+1];
@@ -119,6 +119,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
     {
         FourSizeInfo local_ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
         Count thread_id = omp_get_thread_num();
+        Count vertex_dg, vertex_dg2;
 
         EdgeIdx e_j, e_k, loc111, loc112, loc121, loc122, loc211, loc212, loc221, loc_222, loc1, loc2;
         VertexIdx i, j, k, k1, k2, k1_idx, k2_idx;
@@ -134,10 +135,15 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             VertexIdx* local_star2_1 = new VertexIdx[gout->nVertices+1]();   
             VertexIdx* local_star2_2 = new VertexIdx[gout->nVertices+1]();   
 
+            vertex_dg2 = gout_2->degree(i) + gin_2->degree(i);
+            vertex_dg = gout->degree(i) + gin->degree(i);
+            local_ret.star1 += vertex_dg2 * (vertex_dg2 - 1) * (vertex_dg2 - 2) / 6;
+            local_ret.star2 += vertex_dg2 * (vertex_dg2 - 1) / 2 * vertex_dg;
+
             for (e_j = start; e_j < end; ++e_j) {
                 j = gout->nbors[e_j];
                 
-                local_ret.path3 += (gout_2->degree(i) + gin_2->degree(i)) * (gout_2->degree(i) + gin_2->degree(j));
+                local_ret.path3 += (gout_2->degree(i) + gin_2->degree(i)) * (gout_2->degree(j) + gin_2->degree(j));
                 TriangleInfo local_tri2_1(gout_2->degree(i));
                 TriangleInfo local_tri3_1_1(gout->degree(i)-1);
                 TriangleInfo local_tri3_1_2(gout_2->degree(i));
@@ -609,6 +615,9 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             ret.cycle2 += local_ret.cycle2;
             ret.cycle3 += local_ret.cycle3;
 
+            ret.star1 += local_ret.star1; 
+            ret.star2 += local_ret.star2;
+
             ret.path1 += local_ret.path1;
             ret.path2 += local_ret.path2;
             ret.path3 += local_ret.path3;
@@ -720,10 +729,13 @@ void countFour(CDAG *dag, CDAG *dag_2, double (&mcounts)[36]){
     mcounts[28] = motifcounts.cycle2;
     mcounts[29] = motifcounts.cycle3;
 
+    mcounts[30] = motifcounts.star1;
+    mcounts[31] = motifcounts.star2;
+
     mcounts[32] = motifcounts.path1 - 3 * motifcounts.tri1;
-    mcounts[33] = motifcounts.path2 - 3 * motifcounts.tri2;
-    mcounts[34] = motifcounts.path3 - 3 * motifcounts.tri2;
-    mcounts[35] = motifcounts.path4 - 3 * motifcounts.tri3;
+    mcounts[33] = motifcounts.path2 - 2 * motifcounts.tri2;
+    mcounts[34] = motifcounts.path3 - motifcounts.tri2;
+    mcounts[35] = motifcounts.path4 - motifcounts.tri3;
 }
 
 void mEquation3(double (&mcounts)[6]){
@@ -738,17 +750,17 @@ void mEquation3(double (&mcounts)[6]){
 
 void mEquation4(double (&mcounts)[36]){
 
-    printf("d1-1 : %.1f\n", mcounts[0]);
-    printf("d1-2 : %.1f\n", mcounts[1]);
-    printf("d1-3 : %.1f\n", mcounts[2]);
-    printf("d1-4 : %.1f\n", mcounts[3]);
-    printf("d1-5 : %.1f\n", mcounts[4]);
-    printf("d1-6 : %.1f\n", mcounts[5]);
-    printf("d1-7 : %.1f\n", mcounts[6]);
-    printf("d1-8 : %.1f\n", mcounts[7]);
-    printf("d1-9 : %.1f\n", mcounts[8]);
-    printf("d1-10 : %.1f\n", mcounts[9]);
-    printf("d1-11 : %.1f\n", mcounts[10]);
+    double d1_1 = mcounts[0];
+    double d1_2 = mcounts[1];
+    double d1_3 = mcounts[2];
+    double d1_4 = mcounts[3];
+    double d1_5 = mcounts[4];
+    double d1_6 = mcounts[5];
+    double d1_7 = mcounts[6];
+    double d1_8 = mcounts[7];
+    double d1_9 = mcounts[8];
+    double d1_10 = mcounts[9];
+    double d1_11 = mcounts[10];
 
     double d2_1 = mcounts[11] - 6 * mcounts[0] - mcounts[1];
     double d2_2 = mcounts[12] - mcounts[1] - 2 * mcounts[2];
@@ -758,6 +770,39 @@ void mEquation4(double (&mcounts)[36]){
     double d2_6 = mcounts[16] - mcounts[3] - 3 * mcounts[5];
     double d2_7 = mcounts[17] - 3 * mcounts[6] - mcounts[8];
     double d2_8 = mcounts[18] - mcounts[4] - 4 * mcounts[7] - 3 * mcounts[5] - mcounts[8];
+
+    double d3_1 = mcounts[19] - 4 * d2_1 - d2_3 - 12 * d1_1 - 4 * d1_2 - d1_4;
+    double d3_2 = mcounts[20] - d2_3 - 2 * d2_6 - 2 * d1_2 - 2 * d1_4 - 3 * d1_6;
+    double d3_3 = mcounts[21] - 4 * d2_2 - d2_3 - 2 * d2_4 - d2_5 - 4 * d1_2 - 8 * d1_3 - 2 * d1_4 - 2 * d1_5;
+    double d3_4 = mcounts[22] - d2_3 - 2 * mcounts[1] - 2 * mcounts[3] - 3 * mcounts[6];
+    double d3_5 = mcounts[23] - 2 * d2_4 - 4 * mcounts[2] - 2 * mcounts[4] - mcounts[8];
+    double d3_6 = mcounts[24] - d2_5 - 2 * d2_8 - mcounts[3] - 2 * mcounts[4] - 4 * mcounts[7];
+    double d3_7 = mcounts[25] - d2_5 - 2 * d2_6 - 2 * mcounts[3] - 2 * mcounts[4] - 6 * mcounts[5] - 2 * mcounts[8];
+    double d3_8 = mcounts[26] - 2 * mcounts[17] - mcounts[8] - 2 * mcounts[9] + 3 * mcounts[6] + mcounts[8];
+    
+    double d4_1 = mcounts[27] - d2_1 - d2_2 - 3 * mcounts[0] - mcounts[1] - mcounts[2];
+    double d4_2 = mcounts[28] - d2_3 - d2_5 - 2 * mcounts[1] - 2 * mcounts[3] - mcounts[4];
+    double d4_3 = mcounts[29] - d2_4 - d2_8 - 2 * mcounts[2] - mcounts[4] - 2 * mcounts[7];
+
+    double d5_1 = mcounts[30] - d3_1 - d3_4 - 2 * d2_1 - d2_3 - 4 * d1_1 - 2 * d1_2 - d1_4 - d1_7;
+    double d5_2 = mcounts[31] - d3_2 - d3_3 - d3_5 - d3_7 - 2 * d2_2 - d2_3 - 2 * d2_4 - d2_5 - 2 * d2_6 - 2 * d1_2 - 4 * d1_3 - 2 * d1_4 - 2 * d1_5 - 3 * d1_6 - d1_9;
+
+    double d6_1 = mcounts[32] - 4 * d4_1 - d4_2 - 2 * d3_1 - d3_3 - 6 * d2_1 - 4 * d2_2 - 2 * d2_3 - d2_4 - d2_5 - 12 * d1_1 - 6 * d1_2 - 4 * d1_3 - 2 * d1_4 - d1_5;
+    double d6_2 = mcounts[33] - 2 * d4_2 - 2 * d3_2 - 2 * d3_4 - d3_7 - 3 * d2_3 - 2 * d2_5 - 4 * d2_6 - 2 * d2_7 - 4 * d1_2 - 6 * d1_4 - 2 * d1_5 - 6 * d1_6 - 6 * d1_7 - 2 * d1_9;
+    double d6_3 = mcounts[34] - d4_2 - 2 * d4_3 - d3_3 - 2 * d3_6 - 2 * d2_2 - d2_3 - 2 * d2_4 - 2 * d2_5 - 3 * d2_8 - 2 * d1_2 - 4 * d1_3 - 2 * d1_4 - 3 * d1_5 - 4 * d1_8;
+    double d6_4 = mcounts[35] - 2 * d4_3 - 2 * d3_5 - 3 * d2_4 - 2 * d2_8 - 4 * d1_3 - 3 * d1_5 - 4 * d1_8 - 2 * d1_9 - 2 * d1_10;
+
+    printf("d1-1 : %.1f\n", d1_1);
+    printf("d1-2 : %.1f\n", d1_2);
+    printf("d1-3 : %.1f\n", d1_3);
+    printf("d1-4 : %.1f\n", d1_4);
+    printf("d1-5 : %.1f\n", d1_5);
+    printf("d1-6 : %.1f\n", d1_6);
+    printf("d1-7 : %.1f\n", d1_7);
+    printf("d1-8 : %.1f\n", d1_8);
+    printf("d1-9 : %.1f\n", d1_9);
+    printf("d1-10 : %.1f\n", d1_10);
+    printf("d1-11 : %.1f\n", d1_11);
     
     printf("d2-1 : %.1f\n", d2_1);
     printf("d2-2 : %.1f\n", d2_2);
@@ -768,21 +813,24 @@ void mEquation4(double (&mcounts)[36]){
     printf("d2-7 : %.1f\n", d2_7);
     printf("d2-8 : %.1f\n", d2_8);
 
-    printf("d3-1 : %.1f\n", mcounts[19] - 4 * mcounts[11] - mcounts[13] + 12 * mcounts[0] + 4 * mcounts[1] + mcounts[3]);
-    printf("d3-2 : %.1f\n", mcounts[20] - mcounts[13] - 2 * mcounts[16] + 2 * mcounts[1] + 2 * mcounts[3] + 3 * mcounts[5]);
-    printf("d3-3 : %.1f\n", mcounts[21] - 4 * d2_2 - d2_3 - 2 * d2_4 - d2_5 - 4 * mcounts[1] - 8 * mcounts[2] - 2 * mcounts[3] - 2 * mcounts[4]);
-    printf("d3-4 : %.1f\n", mcounts[22] - d2_3 - 2 * mcounts[1] - 2 * mcounts[3] - 3 * mcounts[6]);
-    printf("d3-5 : %.1f\n", mcounts[23] - 2 * d2_4 - 4 * mcounts[2] - 2 * mcounts[4] - mcounts[8]);
-    printf("d3-6 : %.1f\n", mcounts[24] - d2_5 - 2 * d2_8 - mcounts[3] - 2 * mcounts[4] - 4 * mcounts[7]);
-    printf("d3-7 : %.1f\n", mcounts[25] - d2_5 - 2 * d2_6 - 2 * mcounts[3] - 2 * mcounts[4] - 6 * mcounts[5] - 2 * mcounts[8]);
-    printf("d3-8 : %.1f\n", mcounts[26] - 2 * mcounts[17] - mcounts[8] - 2 * mcounts[9] + 3 * mcounts[6] + mcounts[8]);
+    printf("d3-1 : %.1f\n", d3_1);
+    printf("d3-2 : %.1f\n", d3_2);
+    printf("d3-3 : %.1f\n", d3_3);
+    printf("d3-4 : %.1f\n", d3_4);
+    printf("d3-5 : %.1f\n", d3_5);
+    printf("d3-6 : %.1f\n", d3_6);
+    printf("d3-7 : %.1f\n", d3_7);
+    printf("d3-8 : %.1f\n", d3_8);
 
-    printf("d4-1 : %.1f\n", mcounts[27] - d2_1 - d2_2 - 3 * mcounts[0] - mcounts[1] - mcounts[2]);
-    printf("d4-2 : %.1f\n", mcounts[28] - d2_3 - d2_5 - 2 * mcounts[1] - 2 * mcounts[3] - mcounts[4]);
-    printf("d4-3 : %.1f\n", mcounts[29] - d2_4 - d2_8 - 2 * mcounts[2] - mcounts[4] - 2 * mcounts[7]);
+    printf("d4-1 : %.1f\n", d4_1);
+    printf("d4-2 : %.1f\n", d4_2);
+    printf("d4-3 : %.1f\n", d4_3);
 
-    printf("d6-1 : %.1f\n", mcounts[32]);
-    printf("d6-2 : %.1f\n", mcounts[33]);
-    printf("d6-3 : %.1f\n", mcounts[34]);
-    printf("d6-4 : %.1f\n", mcounts[35]);
+    printf("d5-1 : %.1f\n", d5_1);
+    printf("d5-2 : %.1f\n", d5_2);
+
+    printf("d6-1 : %.1f\n", d6_1);
+    printf("d6-2 : %.1f\n", d6_2);
+    printf("d6-3 : %.1f\n", d6_3);
+    printf("d6-4 : %.1f\n", d6_4);
 }
