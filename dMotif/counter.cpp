@@ -97,7 +97,7 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
 
     FourSizeInfo ret (gout->nVertices, gout->nEdges, gout_2->nEdges);
     const Count num_threads = 11;
-
+    Count current = 0;
     omp_set_num_threads(num_threads);
     EdgeIdx** all_local_tri1 = new EdgeIdx*[num_threads];
     EdgeIdx** all_local_tri2_1 = new EdgeIdx*[num_threads];
@@ -579,6 +579,14 @@ FourSizeInfo get4size(CGraph *gout, CGraph *gin, CGraph *gout_2, CGraph *gin_2) 
             delete[] local_star1;
             delete[] local_star2_1;
             delete[] local_star2_2;
+
+            #pragma omp critical
+            {
+                if (current % 10 == 0){
+                    printf("Node : %lld / %lld done...\n", current, gout->nVertices);
+                }
+                current++;
+            }
         }
         
 
